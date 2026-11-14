@@ -2,7 +2,7 @@
 
 <img src="img/msQuant-ico.png" width="120" alt="msQuant icon">
 
-[!\[CI](https://github.com/markellerhorst/msQuant/actions/workflows/ci.yml/badge.svg)](https://github.com/markellerhorst/msQuant/actions/workflows/ci.yml)
+[![CI](https://github.com/markellerhorst/msQuant/actions/workflows/ci.yml/badge.svg)](https://github.com/markellerhorst/msQuant/actions/workflows/ci.yml)
 
 Desktop app (Windows, macOS) for **targeted quantification of LC-MS/MS data** from Thermo `.raw` and mzML files.
 Repository: [https://github.com/markellerhorst/msQuant](https://github.com/markellerhorst/msQuant)
