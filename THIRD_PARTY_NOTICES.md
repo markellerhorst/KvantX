@@ -24,5 +24,5 @@ The complete list of transitive licenses can be generated with
 
 ## Reference and assets
 - **mzmine** (MIT) – https://github.com/mzmine/mzmine – reference for handling vendor raw files through an external converter. No mzmine source code is included.
-- **App icon** (`img/lcms-quant-ico.ico`): generated with Gemini (Google). You are responsible for checking that Google's terms for generated content suit your use.
+- **App icon** (`img/msQuant-ico.ico`): generated with Gemini (Google). You are responsible for checking that Google's terms for generated content suit your use.
 - **Development**: written with Claude Sonnet 5.5 (Medium), Anthropic.

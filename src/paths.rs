@@ -1,6 +1,6 @@
 //! Locations of the files that msQuant writes.
 //!
-//! Everything the program needs for itself (settings, audit trail and temporary files) lives in
+//! Everything the program needs for itself (settings, audit trails of unsaved sessions and temporary files) lives in
 //! the folder [`DEFAULT_DIR_NAME`] in the root folder of the installation. Files the user creates
 //! (projects, results, figures) go to a standard folder that can be chosen in the preferences; it
 //! defaults to the same folder. Nothing else is written to disk during normal use.
@@ -19,10 +19,19 @@ pub const DEFAULT_DIR_NAME: &str = "msQuant-default";
 pub fn root_from_exe(exe: &Path) -> PathBuf {
     let dir = exe.parent().unwrap_or_else(|| Path::new("."));
     let folder_name = |p: &Path| p.file_name().and_then(|n| n.to_str()).map(str::to_owned);
-    let in_build_output = matches!(folder_name(dir).as_deref(), Some("debug") | Some("release"))
-        && dir.parent().and_then(folder_name).as_deref() == Some("target");
+    // `cargo test` runs executables from `target/<profile>/deps`.
+    let build_dir = if folder_name(dir).as_deref() == Some("deps") {
+        dir.parent().unwrap_or(dir)
+    } else {
+        dir
+    };
+    let in_build_output = matches!(
+        folder_name(build_dir).as_deref(),
+        Some("debug") | Some("release")
+    ) && build_dir.parent().and_then(folder_name).as_deref()
+        == Some("target");
     if in_build_output {
-        if let Some(project_root) = dir.parent().and_then(Path::parent) {
+        if let Some(project_root) = build_dir.parent().and_then(Path::parent) {
             return project_root.to_path_buf();
         }
     }
@@ -59,10 +68,25 @@ pub fn settings_file() -> PathBuf {
     default_dir_path().join("settings.txt")
 }
 
-/// File with the audit trail.
+/// Folder for the audit trails of sessions that were not saved to a project (path only).
 #[must_use]
-pub fn audit_file() -> PathBuf {
-    default_dir_path().join("audit_trail.log")
+pub fn audit_dir_path() -> PathBuf {
+    default_dir_path().join("audit")
+}
+
+/// New file for the audit trail of this session; the folder is created if necessary.
+#[must_use]
+pub fn session_audit_file() -> PathBuf {
+    let dir = audit_dir_path();
+    let _ = std::fs::create_dir_all(&dir);
+    let stamp = crate::audit::iso_now().replace(':', "-");
+    dir.join(format!("session_{}_{}.log", stamp, std::process::id()))
+}
+
+/// Audit trail of a project: next to the project file, with the extension `.audit.log`.
+#[must_use]
+pub fn project_audit_file(project: &Path) -> PathBuf {
+    project.with_extension("audit.log")
 }
 
 /// Folder for temporary files, created if it does not exist yet.

@@ -4,6 +4,8 @@ fn main() {
     {
         let mut res = winresource::WindowsResource::new();
         res.set_icon("img/msQuant-ico.ico");
-        if let Err(e) = res.compile() { println!("cargo:warning=could not embed icon: {}", e); }
+        if let Err(e) = res.compile() {
+            println!("cargo:warning=could not embed icon: {}", e);
+        }
     }
 }

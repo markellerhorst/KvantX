@@ -16,5 +16,26 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Build
         run: cargo build --release
-      - name: Test (real-data tests skip themselves when test-data/*.raw or ThermoRawFileParser is absent)
-        run: cargo test --release -- --nocapture
+      - name: Test (tests that need test-data or ThermoRawFileParser skip themselves)
+        shell: bash
+        run: |
+          set -o pipefail
+          cargo test --release --no-fail-fast -- --nocapture 2>&1 | tee test.log
+      - name: Test results in the job summary
+        if: always()
+        shell: bash
+        run: |
+          echo "### Test results (${{ matrix.os }})" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          grep -E "^test result|Running|^test .* FAILED|panicked" test.log >> "$GITHUB_STEP_SUMMARY" || true
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+  security-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Known vulnerabilities in the dependencies
+        run: |
+          cargo install cargo-audit --locked
+          cargo generate-lockfile
+          cargo audit

@@ -8,6 +8,8 @@ homepage = "https://github.com/markellerhorst/msQuant"
 license = "MIT"
 readme = "README.md"
 build = "build.rs"
+# ThermoRawFileParser, test data and local data folders are never part of a package.
+exclude = ["tools/", "test-data/", "msQuant-default/", ".github/", "target/"]
 
 [lib]
 name = "msquant"

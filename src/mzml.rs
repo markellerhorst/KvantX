@@ -66,7 +66,11 @@ fn b64(s: &str) -> Vec<u8> {
         };
         acc = (acc << 6) | v;
         n += 6;
-        if n >= 8 { n -= 8; out.push((acc >> n) as u8); acc &= (1 << n) - 1; }
+        if n >= 8 {
+            n -= 8;
+            out.push((acc >> n) as u8);
+            acc &= (1 << n) - 1;
+        }
     }
     out
 }
@@ -74,23 +78,42 @@ fn b64(s: &str) -> Vec<u8> {
 /// "controllerType=0 controllerNumber=1 scan=1234" -> 1234.
 fn scan_no(id: &str) -> Option<u32> {
     let p = id.rfind("scan=")?;
-    let d: String = id[p + 5..].chars().take_while(|c| c.is_ascii_digit()).collect();
+    let d: String = id[p + 5..]
+        .chars()
+        .take_while(|c| c.is_ascii_digit())
+        .collect();
     d.parse().ok()
 }
 
 /// The spectrum that is currently being read.
-struct Cur { level: u32, rt: f64, scan: u32, mz: Vec<f64>, inten: Vec<f32>, prec: Option<f64>, iso: Option<f64> }
+struct Cur {
+    level: u32,
+    rt: f64,
+    scan: u32,
+    mz: Vec<f64>,
+    inten: Vec<f32>,
+    prec: Option<f64>,
+    iso: Option<f64>,
+}
 
 /// Completes a spectrum: drops it if its arrays are missing or inconsistent and sorts the peaks by m/z.
 fn finish(mut c: Cur) -> Option<Spectrum> {
-    if c.mz.is_empty() || c.mz.len() != c.inten.len() { return None; }
+    if c.mz.is_empty() || c.mz.len() != c.inten.len() {
+        return None;
+    }
     if !c.mz.windows(2).all(|w| w[0] <= w[1]) {
         let mut p: Vec<(f64, f32)> = c.mz.iter().cloned().zip(c.inten.iter().cloned()).collect();
         p.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
         c.mz = p.iter().map(|x| x.0).collect();
         c.inten = p.iter().map(|x| x.1).collect();
     }
-    Some(Spectrum { rt: c.rt, scan: c.scan, mz: c.mz, inten: c.inten, precursor: c.prec.or(c.iso) })
+    Some(Spectrum {
+        rt: c.rt,
+        scan: c.scan,
+        mz: c.mz,
+        inten: c.inten,
+        precursor: c.prec.or(c.iso),
+    })
 }
 
 /// Parses mzML text that is already in memory.
@@ -119,25 +142,48 @@ pub fn parse_bytes(name: &str, bytes: &[u8]) -> Result<MzData, String> {
     let mut i = 0;
     while i < bt.len() {
         if bt[i] == b'<' {
-            let end = match t[i..].find('>') { Some(e) => i + e, None => break };
+            let end = match t[i..].find('>') {
+                Some(e) => i + e,
+                None => break,
+            };
             let tag = &t[i + 1..end];
             i = end + 1;
-            if tag.starts_with('?') || tag.starts_with('!') { continue; }
+            if tag.starts_with('?') || tag.starts_with('!') {
+                continue;
+            }
             if let Some(n) = tag.strip_prefix('/') {
                 match n.trim() {
                     "binary" => {
                         in_bin = false;
                         if let Some(c) = cur.as_mut() {
                             if in_bda && (c.level == 1 || c.level == 2) && kind != 0 {
-                                if unsupported { return Err("numpress-compressed data is not supported".into()); }
+                                if unsupported {
+                                    return Err("numpress-compressed data is not supported".into());
+                                }
                                 let mut raw = b64(&bin);
-                                if zlib { raw = zlib_decompress(&raw)?; }
+                                if zlib {
+                                    raw = zlib_decompress(&raw)?;
+                                }
                                 let vals: Vec<f64> = if is64 {
-                                    raw.chunks_exact(8).map(|b| f64::from_le_bytes([b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]])).collect()
+                                    raw.chunks_exact(8)
+                                        .map(|b| {
+                                            f64::from_le_bytes([
+                                                b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7],
+                                            ])
+                                        })
+                                        .collect()
                                 } else {
-                                    raw.chunks_exact(4).map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]]) as f64).collect()
+                                    raw.chunks_exact(4)
+                                        .map(|b| {
+                                            f32::from_le_bytes([b[0], b[1], b[2], b[3]]) as f64
+                                        })
+                                        .collect()
                                 };
-                                if kind == 1 { c.mz = vals; } else { c.inten = vals.into_iter().map(|v| v as f32).collect(); }
+                                if kind == 1 {
+                                    c.mz = vals;
+                                } else {
+                                    c.inten = vals.into_iter().map(|v| v as f32).collect();
+                                }
                             }
                         }
                     }
@@ -146,7 +192,13 @@ pub fn parse_bytes(name: &str, bytes: &[u8]) -> Result<MzData, String> {
                         if let Some(c) = cur.take() {
                             let level = c.level;
                             if level == 1 || level == 2 {
-                                if let Some(sp) = finish(c) { if level == 1 { ms1.push(sp); } else { spectra.push(sp); } }
+                                if let Some(sp) = finish(c) {
+                                    if level == 1 {
+                                        ms1.push(sp);
+                                    } else {
+                                        spectra.push(sp);
+                                    }
+                                }
                             }
                         }
                     }
@@ -155,25 +207,49 @@ pub fn parse_bytes(name: &str, bytes: &[u8]) -> Result<MzData, String> {
                 continue;
             }
             let selfc = tag.ends_with('/');
-            let nm = tag.split(|c: char| c.is_whitespace() || c == '/').next().unwrap_or("");
+            let nm = tag
+                .split(|c: char| c.is_whitespace() || c == '/')
+                .next()
+                .unwrap_or("");
             match nm {
                 "spectrum" if !selfc => {
                     n_total += 1;
                     let scan = attr(tag, "id").and_then(scan_no).unwrap_or(n_total as u32);
-                    cur = Some(Cur { level: 0, rt: 0.0, scan, mz: vec![], inten: vec![], prec: None, iso: None });
+                    cur = Some(Cur {
+                        level: 0,
+                        rt: 0.0,
+                        scan,
+                        mz: vec![],
+                        inten: vec![],
+                        prec: None,
+                        iso: None,
+                    });
                 }
-                "binaryDataArray" if !selfc => { in_bda = true; is64 = true; zlib = false; kind = 0; unsupported = false; }
-                "binary" if !selfc => { in_bin = true; bin.clear(); }
+                "binaryDataArray" if !selfc => {
+                    in_bda = true;
+                    is64 = true;
+                    zlib = false;
+                    kind = 0;
+                    unsupported = false;
+                }
+                "binary" if !selfc => {
+                    in_bin = true;
+                    bin.clear();
+                }
                 "cvParam" => {
                     if let (Some(c), Some(acc)) = (cur.as_mut(), attr(tag, "accession")) {
                         let val = attr(tag, "value").unwrap_or("");
                         if !in_bda {
-                            if acc == "MS:1000511" { c.level = val.parse().unwrap_or(0); }
-                            else if acc == "MS:1000744" { c.prec = val.parse().ok(); }
-                            else if acc == "MS:1000827" { c.iso = val.parse().ok(); }
-                            else if acc == "MS:1000016" {
+                            if acc == "MS:1000511" {
+                                c.level = val.parse().unwrap_or(0);
+                            } else if acc == "MS:1000744" {
+                                c.prec = val.parse().ok();
+                            } else if acc == "MS:1000827" {
+                                c.iso = val.parse().ok();
+                            } else if acc == "MS:1000016" {
                                 let v: f64 = val.parse().unwrap_or(0.0);
-                                let sec = attr(tag, "unitAccession") == Some("UO:0000010") || attr(tag, "unitName") == Some("second");
+                                let sec = attr(tag, "unitAccession") == Some("UO:0000010")
+                                    || attr(tag, "unitName") == Some("second");
                                 c.rt = if sec { v / 60.0 } else { v };
                             }
                         } else {
@@ -184,7 +260,8 @@ pub fn parse_bytes(name: &str, bytes: &[u8]) -> Result<MzData, String> {
                                 "MS:1000576" => zlib = false,
                                 "MS:1000514" => kind = 1,
                                 "MS:1000515" => kind = 2,
-                                "MS:1002312" | "MS:1002313" | "MS:1002314" | "MS:1002746" | "MS:1002747" | "MS:1002748" => unsupported = true,
+                                "MS:1002312" | "MS:1002313" | "MS:1002314" | "MS:1002746"
+                                | "MS:1002747" | "MS:1002748" => unsupported = true,
                                 _ => {}
                             }
                         }
@@ -194,18 +271,36 @@ pub fn parse_bytes(name: &str, bytes: &[u8]) -> Result<MzData, String> {
             }
         } else {
             let e = t[i..].find('<').map(|p| i + p).unwrap_or(bt.len());
-            if in_bin { bin.push_str(t[i..e].trim()); }
+            if in_bin {
+                bin.push_str(t[i..e].trim());
+            }
             i = e;
         }
     }
     if spectra.is_empty() && ms1.is_empty() {
-        return Err(format!("{}: no MS1/MS2 spectra found (is this centroid/profile LC-MS data?)", name));
+        return Err(format!(
+            "{}: no MS1/MS2 spectra found (is this centroid/profile LC-MS data?)",
+            name
+        ));
     }
     spectra.sort_by(|a, b| a.rt.partial_cmp(&b.rt).unwrap_or(std::cmp::Ordering::Equal));
     ms1.sort_by(|a, b| a.rt.partial_cmp(&b.rt).unwrap_or(std::cmp::Ordering::Equal));
     let tic = |s: &Spectrum| [s.rt, s.inten.iter().map(|&v| v as f64).sum::<f64>()];
     let bpc = |s: &Spectrum| [s.rt, s.inten.iter().cloned().fold(0.0f32, f32::max) as f64];
     let (tic1, bpc1) = (ms1.iter().map(tic).collect(), ms1.iter().map(bpc).collect());
-    let (tic2, bpc2) = (spectra.iter().map(tic).collect(), spectra.iter().map(bpc).collect());
-    Ok(MzData { name, sha256: sha, spectra, ms1, n_total, tic1, bpc1, tic2, bpc2 })
+    let (tic2, bpc2) = (
+        spectra.iter().map(tic).collect(),
+        spectra.iter().map(bpc).collect(),
+    );
+    Ok(MzData {
+        name,
+        sha256: sha,
+        spectra,
+        ms1,
+        n_total,
+        tic1,
+        bpc1,
+        tic2,
+        bpc2,
+    })
 }

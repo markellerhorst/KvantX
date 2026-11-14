@@ -5,7 +5,13 @@ fn crc_table() -> [u32; 256] {
     let mut t = [0u32; 256];
     for n in 0..256u32 {
         let mut c = n;
-        for _ in 0..8 { c = if c & 1 != 0 { 0xEDB88320 ^ (c >> 1) } else { c >> 1 }; }
+        for _ in 0..8 {
+            c = if c & 1 != 0 {
+                0xEDB88320 ^ (c >> 1)
+            } else {
+                c >> 1
+            };
+        }
         t[n as usize] = c;
     }
     t
@@ -16,14 +22,19 @@ fn crc_table() -> [u32; 256] {
 pub fn crc32(data: &[u8]) -> u32 {
     let t = crc_table();
     let mut c = 0xFFFF_FFFFu32;
-    for &b in data { c = t[((c ^ b as u32) & 0xFF) as usize] ^ (c >> 8); }
+    for &b in data {
+        c = t[((c ^ b as u32) & 0xFF) as usize] ^ (c >> 8);
+    }
     c ^ 0xFFFF_FFFF
 }
 
 /// Adler-32 checksum of `d`, the trailer of a zlib stream.
 fn adler32(d: &[u8]) -> u32 {
     let (mut a, mut b) = (1u32, 0u32);
-    for &x in d { a = (a + x as u32) % 65521; b = (b + a) % 65521; }
+    for &x in d {
+        a = (a + x as u32) % 65521;
+        b = (b + a) % 65521;
+    }
     (b << 16) | a
 }
 
@@ -38,10 +49,15 @@ fn chunk(out: &mut Vec<u8>, ty: &[u8; 4], body: &[u8]) {
 
 /// `rgb` holds width*height*3 bytes, row by row.
 pub fn encode_rgb(w: u32, h: u32, rgb: &[u8]) -> Result<Vec<u8>, String> {
-    if w == 0 || h == 0 || rgb.len() != (w as usize) * (h as usize) * 3 { return Err("bad image size".into()); }
+    if w == 0 || h == 0 || rgb.len() != (w as usize) * (h as usize) * 3 {
+        return Err("bad image size".into());
+    }
     let stride = w as usize * 3;
     let mut raw = Vec::with_capacity((stride + 1) * h as usize);
-    for y in 0..h as usize { raw.push(0); raw.extend_from_slice(&rgb[y * stride..(y + 1) * stride]); }
+    for y in 0..h as usize {
+        raw.push(0);
+        raw.extend_from_slice(&rgb[y * stride..(y + 1) * stride]);
+    }
     let mut z = vec![0x78, 0x01];
     let blocks: Vec<&[u8]> = raw.chunks(65535).collect();
     for (i, b) in blocks.iter().enumerate() {

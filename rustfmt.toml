@@ -1,0 +1,10 @@
+# Formatting follows the Google Rust Style Guide: rustfmt defaults with 100 columns.
+# https://google.github.io/styleguide/rustguide.html
+max_width = 100
+
+# The guide also asks for the following options; they need a nightly rustfmt, so they are left out
+# to keep `cargo fmt` working on stable:
+# imports_granularity = "Module"
+# group_imports = "StdExternalCrate"
+# format_macro_matchers = true
+# hex_literal_case = "Lower"
