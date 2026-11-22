@@ -1,6 +1,6 @@
 //! Thermo .raw -> in-memory mzML via ThermoRawFileParser (CompOmics, Apache-2.0), run as an external program.
 //! The converter writes mzML to its standard output (-s); we capture it in memory. Nothing is written to disk.
-use crate::sha256::Sha256;
+use crate::support::sha256::Sha256;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -40,7 +40,7 @@ pub fn find_trfp(user: &str) -> Option<PathBuf> {
             return Some(p);
         }
     }
-    let tools = crate::paths::install_root().join("tools");
+    let tools = crate::support::paths::install_root().join("tools");
     let mut dirs: Vec<PathBuf> = vec![tools.clone()];
     if let Ok(rd) = std::fs::read_dir(&tools) {
         let mut subs: Vec<PathBuf> = rd
@@ -131,7 +131,7 @@ fn base_cmd(exe: &Path) -> Command {
 
 /// Makes a converter process work in, and use for its own temporary files, the msQuant temporary folder instead of the system one.
 fn confine_to_temp(cmd: &mut Command) {
-    let work = crate::paths::temp_dir();
+    let work = crate::support::paths::temp_dir();
     cmd.current_dir(&work)
         .env("TMP", &work)
         .env("TEMP", &work)

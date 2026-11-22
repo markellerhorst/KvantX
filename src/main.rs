@@ -3,12 +3,13 @@
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 use eframe::egui;
 use msquant::app::App;
-use msquant::icon;
+use msquant::formats::icon;
 
 /// Opens the main window, with the application icon if it can be decoded.
 fn main() -> eframe::Result<()> {
     let mut vp = egui::ViewportBuilder::default()
         .with_inner_size([1500.0, 900.0])
+        .with_min_inner_size([1280.0, 720.0])
         .with_title("msQuant");
     if let Some((rgba, width, height)) = icon::decode_ico(include_bytes!("../img/msQuant-ico.ico"))
     {

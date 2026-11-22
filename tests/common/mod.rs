@@ -3,11 +3,11 @@
 //! Every test file is its own crate and uses a different subset of these functions.
 #![allow(dead_code)]
 
-use msquant::app::{App, LoadInfo};
-use msquant::mzml;
-use msquant::project::{RawSource, SampleRec};
-use msquant::quant;
-use msquant::testkit;
+use msquant::app::{App, LoadInfo, PeakMethod};
+use msquant::formats::mzml;
+use msquant::formats::project::{RawSource, SampleRec};
+use msquant::formats::targets;
+use msquant::support::testkit;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -45,6 +45,9 @@ pub fn app() -> App {
     let _ = std::fs::remove_file(&trail);
     let mut app = App::new_with_audit(&trail.to_string_lossy());
     app.trfp_path.clear();
+    // the tests were written for the original method and tolerance; settings tests change them
+    app.settings.tol = 10.0;
+    app.settings.peak_method = PeakMethod::Legacy;
     app
 }
 
@@ -70,6 +73,29 @@ pub fn add(app: &mut App, n: usize, offset: f64, scale: f64) {
 
 /// Defines the single target `Synth` (RT 5.0 min, product ions 150 and 250).
 pub fn targets(app: &mut App) {
-    app.analytes = quant::parse_table("name,rt,ions\nSynth,5.0,150;250\n").expect("valid table");
+    app.analytes = targets::parse_table("name,rt,ions\nSynth,5.0,150;250\n").expect("valid table");
     app.recompute_all();
+}
+
+/// All `.rs` files below `src/`, including the sub-folders, as (path, text).
+pub fn source_files() -> Vec<(String, String)> {
+    fn walk(dir: &std::path::Path, out: &mut Vec<(String, String)>) {
+        for entry in std::fs::read_dir(dir).unwrap().filter_map(|e| e.ok()) {
+            let path = entry.path();
+            if path.is_dir() {
+                walk(&path, out);
+            } else if path.extension().map(|e| e == "rs").unwrap_or(false) {
+                out.push((
+                    path.display().to_string(),
+                    std::fs::read_to_string(&path).unwrap(),
+                ));
+            }
+        }
+    }
+    let mut out = Vec::new();
+    walk(
+        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src"),
+        &mut out,
+    );
+    out
 }

@@ -2,17 +2,16 @@
 
 mod common;
 
-use common::tmp_dir;
-use msquant::audit::{self, Audit};
-use msquant::fmt;
-use msquant::inflate;
-use msquant::mzml;
-use msquant::project::{self, BlobSource, ProjectFile};
-use msquant::quant;
-use msquant::rawconv;
-use msquant::svg;
-use msquant::testkit;
-use std::path::Path;
+use common::{source_files, tmp_dir};
+use msquant::analysis::alignment;
+use msquant::formats::mzml;
+use msquant::formats::project::{self, BlobSource, ProjectFile};
+use msquant::formats::rawconv;
+use msquant::formats::svg;
+use msquant::support::audit::{self, Audit};
+use msquant::support::fmt;
+use msquant::support::inflate;
+use msquant::support::testkit;
 
 /// Packs `(value, number of bits)` fields into bytes, least significant bit first (as deflate does).
 fn pack_bits(fields: &[(u32, u32)]) -> Vec<u8> {
@@ -81,8 +80,8 @@ fn alignment_refuses_absurd_or_non_finite_retention_times() {
         .collect();
     let huge: Vec<[f64; 2]> = (0..100).map(|i| [1e18 + i as f64, 1.0]).collect();
     let not_a_number = vec![[f64::NAN, 1.0]; 20];
-    assert_eq!(quant::estimate_shift(&normal, &huge, 1.0), 0.0);
-    assert_eq!(quant::estimate_shift(&normal, &not_a_number, 1.0), 0.0);
+    assert_eq!(alignment::estimate_shift(&normal, &huge, 1.0), 0.0);
+    assert_eq!(alignment::estimate_shift(&normal, &not_a_number, 1.0), 0.0);
 }
 
 #[test]
@@ -209,22 +208,6 @@ fn only_a_file_called_like_the_converter_is_ever_started() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// All `.rs` files of the library and the program.
-fn source_files() -> Vec<(String, String)> {
-    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
-    let mut files = Vec::new();
-    for entry in std::fs::read_dir(dir).unwrap().filter_map(|e| e.ok()) {
-        let path = entry.path();
-        if path.extension().map(|e| e == "rs").unwrap_or(false) {
-            files.push((
-                path.display().to_string(),
-                std::fs::read_to_string(&path).unwrap(),
-            ));
-        }
-    }
-    files
-}
-
 #[test]
 fn the_source_contains_no_unsafe_code() {
     for (name, text) in source_files() {
@@ -241,8 +224,10 @@ fn the_source_contains_no_unsafe_code() {
             );
         }
     }
-    let lib =
-        std::fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("src/lib.rs")).unwrap();
+    let lib = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/lib.rs"),
+    )
+    .unwrap();
     assert!(lib.contains("#![forbid(unsafe_code)]"));
 }
 

@@ -79,7 +79,7 @@ pub fn audit_dir_path() -> PathBuf {
 pub fn session_audit_file() -> PathBuf {
     let dir = audit_dir_path();
     let _ = std::fs::create_dir_all(&dir);
-    let stamp = crate::audit::iso_now().replace(':', "-");
+    let stamp = crate::support::audit::iso_now().replace(':', "-");
     dir.join(format!("session_{}_{}.log", stamp, std::process::id()))
 }
 
@@ -87,6 +87,12 @@ pub fn session_audit_file() -> PathBuf {
 #[must_use]
 pub fn project_audit_file(project: &Path) -> PathBuf {
     project.with_extension("audit.log")
+}
+
+/// File with the layout of the last session.
+#[must_use]
+pub fn layout_file() -> PathBuf {
+    default_dir_path().join("layout.txt")
 }
 
 /// Folder for temporary files, created if it does not exist yet.

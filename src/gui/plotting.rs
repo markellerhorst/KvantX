@@ -4,8 +4,9 @@
 //! scaling and the text of a scan. None of this draws anything, so it can be tested without a
 //! window; the plots in [`crate::app`] call these functions.
 
-use crate::fmt;
-use crate::mzml::MzData;
+use crate::domain::MzData;
+pub use crate::domain::types::Boundary;
+use crate::support::fmt;
 use egui_plot::{PlotBounds, PlotPoint};
 
 /// One trace of a chromatogram plot.
@@ -48,13 +49,6 @@ pub struct Hover {
     pub fname: String,
     /// Description of the trace.
     pub desc: String,
-}
-
-/// One of the two integration boundaries of a peak.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Boundary {
-    Start,
-    End,
 }
 
 /// Point of any series closest to the cursor: nearest in time, then the trace whose intensity is closest to the cursor.

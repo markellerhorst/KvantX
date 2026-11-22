@@ -1,7 +1,7 @@
 //! .quant project file: plain tab-separated text. Raw data is NOT stored (it is re-imported from the
 //! recorded paths and verified by SHA-256); only targets, parameters and per-file analysis state are.
-use crate::quant::Analyte;
-use crate::sha256::Sha256;
+use crate::domain::Analyte;
+use crate::support::sha256::Sha256;
 use std::io::{BufWriter, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 
@@ -155,7 +155,7 @@ impl ProjectFile {
                     });
                 }
                 "S" if f.len() >= 7 && p.samples.len() >= MAX_ENTRIES => {
-                    return Err(err("too many files"))
+                    return Err(err("too many files"));
                 }
                 "S" if f.len() >= 7 => p.samples.push(SampleRec {
                     path: f[1].into(),

@@ -1,7 +1,8 @@
 [package]
 name = "msquant"
-version = "0.1.0"
-edition = "2021"
+version = "0.2.0"
+edition = "2024"
+rust-version = "1.85"
 description = "Targeted LC-MS/MS quantification from Thermo .raw and mzML files"
 repository = "https://github.com/markellerhorst/msQuant"
 homepage = "https://github.com/markellerhorst/msQuant"

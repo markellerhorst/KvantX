@@ -2,10 +2,13 @@
 //! They need ThermoRawFileParser (tools/ThermoRawFileParser*/ or $THERMO_RAW_FILE_PARSER) and, for the
 //! framework-dependent build, the .NET runtime. If the data or the converter is missing the tests print
 //! "SKIPPED" (run `cargo test -- --nocapture` to see it) and pass, so CI without the large files stays green.
-use msquant::mzml;
-use msquant::project::{ProjectFile, SampleRec};
-use msquant::quant::{self, Analyte};
-use msquant::rawconv;
+use msquant::analysis::{alignment, integration, peaks, xic};
+use msquant::domain::Analyte;
+use msquant::domain::MzData;
+use msquant::formats::mzml;
+use msquant::formats::project::{ProjectFile, SampleRec};
+use msquant::formats::rawconv;
+use msquant::formats::targets;
 use std::path::PathBuf;
 use std::sync::OnceLock;
 
@@ -34,7 +37,7 @@ fn files(ext: &str) -> Vec<PathBuf> {
 struct Loaded {
     path: PathBuf,
     raw_sha: String,
-    data: mzml::MzData,
+    data: MzData,
 }
 
 /// Converts the first .raw file once (conversion can take a while) and shares it between tests.
@@ -91,9 +94,10 @@ fn raw_file_is_hashed_converted_in_memory_and_parsed() {
             tr.windows(2).all(|w| w[0][0] <= w[1][0]),
             "retention times must be ascending"
         );
-        assert!(tr
-            .iter()
-            .all(|p| p[0].is_finite() && p[1].is_finite() && p[1] >= 0.0));
+        assert!(
+            tr.iter()
+                .all(|p| p[0].is_finite() && p[1].is_finite() && p[1] >= 0.0)
+        );
     }
     assert_eq!(l.data.tic1.len(), l.data.bpc1.len());
     assert_eq!(l.data.tic2.len(), l.data.spectra.len());
@@ -123,9 +127,11 @@ fn nothing_is_written_next_to_the_raw_file() {
         stray, 0,
         "in-memory conversion must not leave .mzML files behind"
     );
-    assert!(!PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("converted_mzml")
-        .exists());
+    assert!(
+        !PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("converted_mzml")
+            .exists()
+    );
 }
 
 #[test]
@@ -155,18 +161,18 @@ fn xic_extraction_and_integration_on_the_strongest_fragment() {
             mz = *m;
         }
     }
-    let x = quant::xic(&l.data.spectra, mz, mz * 10e-6);
+    let x = xic::extract(&l.data.spectra, mz, mz * 10e-6);
     assert_eq!(x.len(), l.data.spectra.len());
     assert!(
         x.iter().any(|p| p[1] > 0.0),
         "the chosen fragment must appear in its own scan"
     );
     let (t0, t1) = (x.first().unwrap()[0], x.last().unwrap()[0]);
-    let total = quant::integrate(&x, t0, t1, false);
+    let total = integration::integrate(&x, t0, t1, false);
     assert!(total > 0.0);
-    let (s, e) = quant::auto_peak(&x, None, 0.0).expect("a peak is found");
+    let (s, e) = peaks::auto_peak(&x, None, 0.0).expect("a peak is found");
     assert!(s >= t0 && e <= t1 && s < e);
-    let peak = quant::integrate(&x, s, e, false);
+    let peak = integration::integrate(&x, s, e, false);
     assert!(
         peak > 0.0 && peak <= total * 1.000001,
         "peak area {} must not exceed the whole-run area {}",
@@ -183,7 +189,7 @@ fn a_run_aligns_to_itself_with_zero_shift() {
     } else {
         &l.data.tic2
     };
-    assert!(quant::estimate_shift(tr, tr, 1.0).abs() < 0.011);
+    assert!(alignment::estimate_shift(tr, tr, 1.0).abs() < 0.011);
 }
 
 #[test]
@@ -197,7 +203,7 @@ fn two_real_runs_get_a_bounded_alignment_shift() {
         eprintln!("SKIPPED: ThermoRawFileParser not found");
         return;
     };
-    let load = |p: &PathBuf| -> Option<mzml::MzData> {
+    let load = |p: &PathBuf| -> Option<MzData> {
         let c = rawconv::convert_in_memory(&trfp, p).ok()?;
         mzml::parse_bytes(&p.file_name()?.to_string_lossy(), &c.mzml).ok()
     };
@@ -205,14 +211,14 @@ fn two_real_runs_get_a_bounded_alignment_shift() {
         eprintln!("SKIPPED: conversion failed");
         return;
     };
-    let tr = |d: &mzml::MzData| {
+    let tr = |d: &MzData| {
         if d.tic1.len() >= 5 {
             d.tic1.clone()
         } else {
             d.tic2.clone()
         }
     };
-    let s = quant::estimate_shift(&tr(&a), &tr(&b), 1.5);
+    let s = alignment::estimate_shift(&tr(&a), &tr(&b), 1.5);
     assert!(
         s.abs() <= 1.5 + 1e-9,
         "shift {} outside the search window",
@@ -222,7 +228,8 @@ fn two_real_runs_get_a_bounded_alignment_shift() {
 
 #[test]
 fn project_file_can_reference_the_real_files() {
-    let raws = files("raw");
+    // Hashing a raw file reads hundreds of megabytes: two files are enough for this check.
+    let raws: Vec<_> = files("raw").into_iter().take(2).collect();
     if raws.is_empty() {
         eprintln!("SKIPPED: no .raw file in test-data");
         return;
@@ -265,7 +272,7 @@ fn optional_target_tables_in_test_data_parse() {
     }
     for t in tables {
         let text = std::fs::read_to_string(&t).unwrap();
-        let a = quant::parse_table(&text).unwrap_or_else(|e| panic!("{}: {}", t.display(), e));
+        let a = targets::parse_table(&text).unwrap_or_else(|e| panic!("{}: {}", t.display(), e));
         assert!(a.iter().all(|x| !x.ions.is_empty() && !x.name.is_empty()));
     }
 }
@@ -286,12 +293,12 @@ fn target_table_applied_to_the_real_run_never_panics() {
         eprintln!("SKIPPED: no .csv target table in test-data");
         return;
     };
-    let targets = quant::parse_table(&std::fs::read_to_string(t).unwrap()).unwrap();
+    let targets = targets::parse_table(&std::fs::read_to_string(t).unwrap()).unwrap();
     for a in &targets {
         for &mz in &a.ions {
-            let x = quant::xic(&l.data.spectra, mz, mz * 10e-6);
-            if let Some((s, e)) = quant::auto_peak(&x, a.rt, 0.3) {
-                assert!(quant::integrate(&x, s, e, true).is_finite());
+            let x = xic::extract(&l.data.spectra, mz, mz * 10e-6);
+            if let Some((s, e)) = peaks::auto_peak(&x, a.rt, 0.3) {
+                assert!(integration::integrate(&x, s, e, true).is_finite());
             }
         }
     }

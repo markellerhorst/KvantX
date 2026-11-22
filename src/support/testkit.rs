@@ -89,13 +89,25 @@ fn spectrum(
     let mzb: Vec<u8> = mz.iter().flat_map(|v| v.to_le_bytes()).collect();
     let inb: Vec<u8> = inten.iter().flat_map(|v| v.to_le_bytes()).collect();
     let time = if secs {
-        format!("<cvParam cvRef=\"MS\" accession=\"MS:1000016\" name=\"scan start time\" value=\"{}\" unitCvRef=\"UO\" unitAccession=\"UO:0000010\" unitName=\"second\"/>", rt_min * 60.0)
+        format!(
+            "<cvParam cvRef=\"MS\" accession=\"MS:1000016\" name=\"scan start time\" value=\"{}\" unitCvRef=\"UO\" unitAccession=\"UO:0000010\" unitName=\"second\"/>",
+            rt_min * 60.0
+        )
     } else {
-        format!("<cvParam cvRef=\"MS\" accession=\"MS:1000016\" name=\"scan start time\" value=\"{}\" unitCvRef=\"UO\" unitAccession=\"UO:0000031\" unitName=\"minute\"/>", rt_min)
+        format!(
+            "<cvParam cvRef=\"MS\" accession=\"MS:1000016\" name=\"scan start time\" value=\"{}\" unitCvRef=\"UO\" unitAccession=\"UO:0000031\" unitName=\"minute\"/>",
+            rt_min
+        )
     };
     format!(
         "<spectrum index=\"{i}\" id=\"scan={i}\" defaultArrayLength=\"{n}\">\n<cvParam cvRef=\"MS\" accession=\"MS:1000511\" name=\"ms level\" value=\"{l}\"/>\n<scanList count=\"1\"><scan>{t}</scan></scanList>\n{p}<binaryDataArrayList count=\"2\">\n<binaryDataArray encodedLength=\"0\"><cvParam cvRef=\"MS\" accession=\"MS:1000523\" name=\"64-bit float\"/><cvParam cvRef=\"MS\" accession=\"MS:1000576\" name=\"no compression\"/><cvParam cvRef=\"MS\" accession=\"MS:1000514\" name=\"m/z array\"/><binary>{m}</binary></binaryDataArray>\n<binaryDataArray encodedLength=\"0\"><cvParam cvRef=\"MS\" accession=\"MS:1000521\" name=\"32-bit float\"/><cvParam cvRef=\"MS\" accession=\"MS:1000574\" name=\"zlib compression\"/><cvParam cvRef=\"MS\" accession=\"MS:1000515\" name=\"intensity array\"/><binary>{b}</binary></binaryDataArray>\n</binaryDataArrayList>\n</spectrum>\n",
-        i = idx, n = mz.len(), l = level, t = time, p = p, m = b64(&mzb), b = b64(&zlib_stored(&inb))
+        i = idx,
+        n = mz.len(),
+        l = level,
+        t = time,
+        p = p,
+        m = b64(&mzb),
+        b = b64(&zlib_stored(&inb))
     )
 }
 

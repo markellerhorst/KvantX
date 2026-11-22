@@ -1,5 +1,5 @@
 //! Minimal .ico reader (PNG-in-ICO and 24/32-bit BMP entries) -> RGBA, so no image crate is needed.
-use crate::inflate::zlib_decompress;
+use crate::support::inflate;
 
 /// Reads a little-endian `u16` at byte offset `o`.
 fn u16le(b: &[u8], o: usize) -> Option<u16> {
@@ -114,7 +114,7 @@ pub fn decode_png(d: &[u8]) -> Option<(Vec<u8>, u32, u32)> {
         return None;
     }
     let bpp = if ct == 6 { 4 } else { 3 };
-    let raw = zlib_decompress(&idat).ok()?;
+    let raw = inflate::zlib_decompress(&idat).ok()?;
     let stride = w * bpp;
     if raw.len() < (stride + 1) * h {
         return None;

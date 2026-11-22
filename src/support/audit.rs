@@ -10,7 +10,7 @@
 //! The hash chain detects accidental damage and simple edits. It is not a signature: somebody
 //! who rewrites the whole file, including all hashes, cannot be detected.
 
-use crate::sha256::sha256_hex;
+use crate::support::sha256;
 use std::io::Write;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -107,7 +107,7 @@ impl Audit {
 
     /// Appends an entry given as `time|user|action|detail` and chains it to the last entry.
     fn append_body(&mut self, body: &str) {
-        let hash = sha256_hex(format!("{}|{}", self.last, body).as_bytes());
+        let hash = sha256::sha256_hex(format!("{}|{}", self.last, body).as_bytes());
         let line = format!("{}|{}", body, hash);
         if let Some(dir) = Path::new(&self.path).parent() {
             let _ = std::fs::create_dir_all(dir);
@@ -203,7 +203,7 @@ pub fn verify(path: &str) -> Result<usize, String> {
         let (body, hash) = l
             .rsplit_once('|')
             .ok_or_else(|| format!("line {}: malformed", i + 1))?;
-        if sha256_hex(format!("{}|{}", last, body).as_bytes()) != hash {
+        if sha256::sha256_hex(format!("{}|{}", last, body).as_bytes()) != hash {
             return Err(format!(
                 "line {}: hash mismatch - audit trail altered or corrupted",
                 i + 1
