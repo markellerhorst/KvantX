@@ -1,12 +1,12 @@
 <h1 align="center">msQuant</h1>
 
-<p align="center"><img src="img/msQuant-ico.png" width="140" alt="msQuant logo"></p>
+<p align="center"><img src="img/kvantx-ico.png" width="140" alt="KvantX logo"></p>
 
 <p align="center">
-  <a href="https://github.com/markellerhorst/msQuant/actions/workflows/ci.yml"><img src="https://github.com/markellerhorst/msQuant/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
+  <a href="https://github.com/markellerhorst/KvantX/actions/workflows/ci.yml"><img src="https://github.com/markellerhorst/KvantX/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
 </p>
 
-msQuant is a fast, light-weight desktop program (Windows, macOS) for **targeted quantification of LC-MS/MS data** from Thermo `.raw` and mzML files.
+KvantX is a fast, light-weight desktop program (Windows, macOS) for **targeted quantification of LC-MS/MS data** from Thermo `.raw` and mzML files.
 You provide a target table (compound, retention time, diagnostic ions); msQuant extracts the chromatograms, integrates the peaks and reports **integrated areas**
 or **concentrations from standard curves** measured in the same project. Integration boundaries can be corrected by hand, with a reason that is written to a hash-chained audit trail.
 
@@ -28,7 +28,7 @@ or **concentrations from standard curves** measured in the same project. Integra
 Requirements: [Rust](https://rustup.rs) 1.85 or newer (edition 2024). On Windows the *Visual Studio Build Tools* ("Desktop development with C++"); on macOS the Xcode command-line tools.
 
 ```powershell
-git clone https://github.com/markellerhorst/msQuant
+git clone https://github.com/markellerhorst/KvantX
 cd msQuant
 cargo run --release          # or: cargo build --release  -> target/release/msQuant(.exe)
 cargo test --no-fail-fast    # tests; real data in test-data/ is optional
