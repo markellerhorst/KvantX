@@ -165,7 +165,10 @@ impl App {
         ui.painter()
             .rect_stroke(rect, 3.0, ui.visuals().widgets.noninteractive.bg_stroke);
         let inner = rect.shrink(6.0);
-        let mut child = ui.new_child(egui::UiBuilder::new().max_rect(inner));
+        let builder = egui::UiBuilder::new()
+            .id_salt(("panel", panel as u8))
+            .max_rect(inner);
+        let mut child = ui.new_child(builder);
         child.set_clip_rect(inner.intersect(ui.clip_rect()));
         self.ui_panel(&mut child, panel);
     }
@@ -286,7 +289,11 @@ impl App {
         ui.painter()
             .rect_stroke(rect, 3.0, ui.visuals().widgets.noninteractive.bg_stroke);
         let inner = rect.shrink(6.0);
-        let mut child = ui.new_child(egui::UiBuilder::new().max_rect(inner));
+        let mut child = ui.new_child(
+            egui::UiBuilder::new()
+                .id_salt(("pane", title))
+                .max_rect(inner),
+        );
         child.set_clip_rect(inner.intersect(ui.clip_rect()));
         child.strong(title);
         child.separator();

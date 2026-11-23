@@ -1,5 +1,5 @@
 //! Results table, calibration, results matrix and calibration setup.
-use crate::gui::widgets::{dv, dv_conc, export_req_cal, safe_name};
+use crate::gui::widgets::{dv, dv_conc, export_req_cal, plot_outer_rect, safe_name};
 
 use crate::app::state::{App, ExportKind, WEIGHTS};
 use crate::domain::types::{Kind, Mode};
@@ -223,7 +223,7 @@ impl App {
                     pu.line(Line::new(PlotPoints::from(lp.clone())).name("fit"));
                 }
             });
-            let rect = pr.response.rect;
+            let rect = plot_outer_rect(&cols[1], pr.response.rect);
             let (x0, x1, y0, y1) = {
                 let b = pr.transform.bounds();
                 (b.min()[0], b.max()[0], b.min()[1], b.max()[1])

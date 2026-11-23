@@ -3,7 +3,7 @@
 mod common;
 
 use common::{add, app, targets};
-use msquant::app::Kind;
+use msquant::app::{App, Kind};
 
 #[test]
 fn explorer_style_selection() {
@@ -143,8 +143,8 @@ fn sorting_needs_at_least_two_selected_files_and_leaves_no_undo_step_otherwise()
     for (i, s) in a.samples.iter_mut().enumerate() {
         s.show = i == 0;
     }
-    let before = a.history.lens();
+    let before = a.history_lens();
     a.sort_selected();
     assert_eq!(a.samples[0].data.name, "run2.raw");
-    assert_eq!(a.history.lens(), before);
+    assert_eq!(a.history_lens(), before);
 }

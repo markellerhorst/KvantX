@@ -49,8 +49,15 @@ fn the_manifest_excludes_third_party_binaries_and_has_one_program() {
             && manifest.contains("\"tools/\"")
             && manifest.contains("\"test-data/\"")
     );
+    let without_comments: String = manifest
+        .lines()
+        .filter(|l| !l.trim_start().starts_with('#'))
+        .collect::<Vec<_>>()
+        .join("\n");
     assert!(
-        !manifest.to_lowercase().contains("thermorawfileparser"),
+        !without_comments
+            .to_lowercase()
+            .contains("thermorawfileparser"),
         "the converter is not a dependency"
     );
     assert_eq!(manifest.matches("[[bin]]").count(), 1);

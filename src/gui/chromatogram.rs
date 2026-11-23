@@ -1,5 +1,5 @@
 //! Chromatogram views: the target view with editable boundaries, overlays and the quick extracted-ion chromatogram.
-use crate::gui::widgets::{dv_mz, dv_rt, pal, safe_name, svg_series};
+use crate::gui::widgets::{dv_mz, dv_rt, pal, plot_outer_rect, safe_name, svg_series};
 
 use crate::analysis::integration;
 use crate::app::analysis_ops::{SummaryTrace, chrom};
@@ -133,7 +133,7 @@ impl App {
                 }
             });
             clicked = pr.response.clicked() && !capturing;
-            let rect = pr.response.rect;
+            let rect = plot_outer_rect(ui, pr.response.rect);
             let (x0, x1, y0, y1) = {
                 let b = pr.transform.bounds();
                 (b.min()[0], b.max()[0], b.min()[1], b.max()[1])
@@ -490,7 +490,7 @@ impl App {
                 let _ = zoom_pan!(pu, r, zoom_c, false);
             });
             clicked = pr.response.clicked() && !capturing;
-            let rect = pr.response.rect;
+            let rect = plot_outer_rect(ui, pr.response.rect);
             let (x0, x1, y0, y1) = {
                 let b = pr.transform.bounds();
                 (b.min()[0], b.max()[0], b.min()[1], b.max()[1])

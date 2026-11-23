@@ -106,3 +106,15 @@ pub(crate) fn svg_series(series: &[Series]) -> Vec<SvgSeries> {
         })
         .collect()
 }
+
+/// The rectangle of a whole plot including its axes and axis labels.
+///
+/// egui_plot reports only the area inside the axes in `response.rect`; the axes and their labels lie
+/// to the left of and below it, in the space the plot took from `ui`. Call this right after the plot
+/// was shown, before anything else is added to `ui`.
+pub(crate) fn plot_outer_rect(ui: &egui::Ui, inner: egui::Rect) -> egui::Rect {
+    egui::Rect::from_min_max(
+        egui::pos2(ui.max_rect().left().min(inner.left()), inner.top()),
+        egui::pos2(inner.right(), ui.min_rect().bottom().max(inner.bottom())),
+    )
+}

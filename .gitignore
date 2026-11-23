@@ -16,6 +16,7 @@ test-data/*.raw
 test-data/*.mzML
 test-data/*.mzml
 test-data/data_source.txt
+test-data/target_table_example.csv
 
 # Editors / OS
 .vscode/

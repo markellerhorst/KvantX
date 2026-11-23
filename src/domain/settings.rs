@@ -40,14 +40,14 @@ impl Default for AnalysisSettings {
     fn default() -> Self {
         Self {
             tol_ppm: true,
-            tol: 10.0,
+            tol: 5.0,
             rt_win: 0.3,
             weighting: 2,
             baseline: true,
             ratio_tol: 30.0,
             units: "ng/mL".into(),
             mode: Mode::Curve,
-            peak_method: PeakMethod::Legacy,
+            peak_method: PeakMethod::Adaptive,
             basis: Basis::Ms2,
             zoom: 1.0,
             align_on: false,
@@ -105,12 +105,12 @@ impl AnalysisSettings {
                     }
                 }
                 "tol" => {
-                    if let Ok(x) = v.parse::<f64>() {
+                    if let Some(x) = v.parse::<f64>().ok().filter(|x| x.is_finite()) {
                         self.tol = x.clamp(0.001, 1000.0);
                     }
                 }
                 "rt_win" => {
-                    if let Ok(x) = v.parse::<f64>() {
+                    if let Some(x) = v.parse::<f64>().ok().filter(|x| x.is_finite()) {
                         self.rt_win = x.clamp(0.01, 60.0);
                     }
                 }
@@ -125,7 +125,7 @@ impl AnalysisSettings {
                     }
                 }
                 "ratio_tol" => {
-                    if let Ok(x) = v.parse::<f64>() {
+                    if let Some(x) = v.parse::<f64>().ok().filter(|x| x.is_finite()) {
                         self.ratio_tol = x.clamp(1.0, 100.0);
                     }
                 }
@@ -144,7 +144,7 @@ impl AnalysisSettings {
                 }
                 "basis" => self.basis = if v == "ms1" { Basis::Ms1 } else { Basis::Ms2 },
                 "zoom" => {
-                    if let Ok(x) = v.parse::<f32>() {
+                    if let Some(x) = v.parse::<f32>().ok().filter(|x| x.is_finite()) {
                         self.zoom = x.clamp(0.5, 3.0);
                     }
                 }
@@ -154,7 +154,7 @@ impl AnalysisSettings {
                     }
                 }
                 "align_max" => {
-                    if let Ok(x) = v.parse::<f64>() {
+                    if let Some(x) = v.parse::<f64>().ok().filter(|x| x.is_finite()) {
                         self.align_max = x.clamp(0.1, 10.0);
                     }
                 }

@@ -265,7 +265,8 @@ pub struct App {
     pub samples: Vec<Sample>,
     /// Public for the integration tests, which drive the application without a window.
     pub fits: Vec<Option<Fit>>,
-    pub(crate) sel_s: usize,
+    /// Index of the current file.
+    pub sel_s: usize,
     pub(crate) sel_a: usize,
     pub(crate) anchor: usize,
     /// Public for the integration tests, which drive the application without a window.

@@ -73,7 +73,7 @@ The quantifier is the first product ion (or the precursor); the other ions are q
   Candidates are the local maxima of `ys` inside the RT window, ranked by **prominence** (height above the higher of the two lowest points towards the next higher peak).
   The boundaries are where the slope returns to the noise level: `theta = max(3 sigma / (sqrt(28) dt), 0.01 max|d|)`; start = first point left of the apex with `d <= theta`,
   end = first point right of it with `d >= -theta` (this also stops at the valley between overlapping peaks). A peak is accepted if its height above the straight line between the
-  boundaries is at least 3 sigma (signal-to-noise 3, the usual limit of detection).
+  boundaries is at least 5 sigma (signal-to-noise 5: above the limit of detection of 3, so that noise bumps in a search over a whole run are not taken for peaks).
 - *Manual*: boundaries typed or dragged; a reason is required and logged; they override either method for that file.
 
 **3. Integration** (trapezoid rule, boundaries `a` and `b` interpolated, time in seconds):

@@ -103,6 +103,6 @@ MzData + Analyte ─▶ analysis::xic ─▶ analysis::peaks (PeakFinder) ─▶
 
 ## Tests (`tests/`)
 One file per topic; `common/mod.rs` holds shared helpers. Unit-level: `fmt`, `csv`, `figures`, `icon`, `hashing`, `inflate`, `mzml`, `history`, `audit`, `paths`, `project_file`, `project_container`,
-`quant` (extraction, integration, calibration, alignment), `analysis_peaks` (both peak methods, smoothing, noise), `settings` (settings, layout, theme), `plotting`.
+`quant` (extraction, integration, calibration, alignment), `analysis_peaks` (both peak methods, smoothing, noise), `settings_and_layout` (settings, layout, theme), `plotting`.
 Application model without a window: `app_calibration`, `app_targets`, `app_selection`, `app_history`, `app_project`, `app_spectrum`, `app_settings`.
 Rules: `layering` (layer dependencies), `security` (hostile input), `packaging` (nothing third-party embedded). `test_data` uses real files from `test-data/` and skips when they are missing.

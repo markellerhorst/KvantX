@@ -406,6 +406,11 @@ impl App {
         }
     }
 
+    /// Numbers of undo and redo steps that are available.
+    pub fn history_lens(&self) -> (usize, usize) {
+        self.history.lens()
+    }
+
     /// Sorts the selected files alphabetically (ignoring case) among the positions they occupy;
     /// files that are not selected stay where they are.
     pub fn sort_selected(&mut self) {

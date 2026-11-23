@@ -1,5 +1,5 @@
 //! The MS2 spectrum panel.
-use crate::gui::widgets::{color_rgb, pal, safe_name};
+use crate::gui::widgets::{color_rgb, pal, plot_outer_rect, safe_name};
 
 use crate::app::state::{App, ExportKind};
 use crate::formats::csv;
@@ -186,7 +186,7 @@ impl App {
                     zoomed_spec = true;
                 }
             });
-            let rect = pr.response.rect;
+            let rect = plot_outer_rect(ui, pr.response.rect);
             let (x0, x1, y0, y1) = {
                 let b = pr.transform.bounds();
                 (b.min()[0], b.max()[0], b.min()[1], b.max()[1])

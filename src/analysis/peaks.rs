@@ -49,7 +49,7 @@ pub trait PeakFinder: Sync {
 #[must_use]
 pub fn finder(method: PeakMethod) -> &'static dyn PeakFinder {
     static LEGACY: LegacyFinder = LegacyFinder;
-    static ADAPTIVE: AdaptiveFinder = AdaptiveFinder { min_snr: 3.0 };
+    static ADAPTIVE: AdaptiveFinder = AdaptiveFinder { min_snr: 5.0 };
     match method {
         PeakMethod::Legacy => &LEGACY,
         PeakMethod::Adaptive => &ADAPTIVE,
@@ -81,8 +81,10 @@ impl PeakFinder for LegacyFinder {
 
 /// Smoothing, noise and derivative based peak finder.
 pub struct AdaptiveFinder {
-    /// Smallest accepted signal-to-noise ratio of the peak height above the baseline. 3 is the
-    /// usual limit of detection (ICH Q2).
+    /// Smallest accepted signal-to-noise ratio of the peak height above the baseline. The usual
+    /// limit of detection is 3 and of quantification 10 (ICH Q2). The method uses 5: it searches
+    /// a whole run without a retention time when none is given, and among hundreds of noise bumps
+    /// a few reach three standard deviations by chance.
     pub min_snr: f64,
 }
 
@@ -131,11 +133,7 @@ impl PeakFinder for AdaptiveFinder {
         // strongest prominence first.
         let mut candidates: Vec<(usize, f64)> = (4..trace.len() - 4)
             .filter(|&i| ys[i] > ys[i - 1] && ys[i] >= ys[i + 1])
-            .filter(|&i| {
-                expected_rt
-                    .map(|rt| (trace[i][0] - rt).abs() <= rt_window)
-                    .unwrap_or(true)
-            })
+            .filter(|&i| expected_rt.map(|rt| (trace[i][0] - rt).abs() <= rt_window).unwrap_or(true))
             .map(|i| (i, prominence(&ys, i)))
             .filter(|&(_, p)| p >= self.min_snr * sigma)
             .collect();
@@ -169,21 +167,50 @@ impl AdaptiveFinder {
         let steepest = d.iter().fold(0.0f64, |m, v| m.max(v.abs()));
         let threshold = (3.0 * sigma_slope).max(0.01 * steepest);
 
-        // Walk down the left flank until the slope has risen above the threshold (the steep part),
-        // then on until it falls back below it. Going up again (a valley) ends the first walk.
+        // Walk away from the apex on each side. First the slope has to become steeper than the
+        // threshold (the flank), then the boundary is the first point where it is flat again. If the
+        // signal climbs again before a flank was seen (a neighbouring peak), the boundary is the lowest
+        // point reached. Two equal points at the apex do not matter.
+        let rise = (3.0 * sigma).max(0.005 * ys[k]);
         let mut left = k;
-        while left > 0 && d[left] <= threshold && ys[left - 1] < ys[left] {
-            left -= 1;
-        }
-        while left > 0 && d[left] > threshold {
-            left -= 1;
+        let (mut flank, mut lowest) = (false, k);
+        while left > 0 {
+            let next = left - 1;
+            if flank {
+                if d[next] <= threshold {
+                    left = next;
+                    break;
+                }
+            } else if d[next] > threshold {
+                flank = true;
+            } else if ys[next] > ys[lowest] + rise {
+                left = lowest;
+                break;
+            }
+            if ys[next] < ys[lowest] {
+                lowest = next;
+            }
+            left = next;
         }
         let mut right = k;
-        while right + 1 < trace.len() && d[right] >= -threshold && ys[right + 1] < ys[right] {
-            right += 1;
-        }
-        while right + 1 < trace.len() && d[right] < -threshold {
-            right += 1;
+        let (mut flank, mut lowest) = (false, k);
+        while right + 1 < trace.len() {
+            let next = right + 1;
+            if flank {
+                if d[next] >= -threshold {
+                    right = next;
+                    break;
+                }
+            } else if d[next] < -threshold {
+                flank = true;
+            } else if ys[next] > ys[lowest] + rise {
+                right = lowest;
+                break;
+            }
+            if ys[next] < ys[lowest] {
+                lowest = next;
+            }
+            right = next;
         }
         if right <= left {
             return None;
@@ -194,11 +221,7 @@ impl AdaptiveFinder {
         if (ys[k] - baseline) < self.min_snr * sigma {
             return None;
         }
-        Some(Peak {
-            start: trace[left][0],
-            end: trace[right][0],
-            apex: trace[k][0],
-        })
+        Some(Peak { start: trace[left][0], end: trace[right][0], apex: trace[k][0] })
     }
 }
 
@@ -207,57 +230,24 @@ impl AdaptiveFinder {
 pub fn auto_peak(x: &[[f64; 2]], hint: Option<f64>, win: f64) -> Option<(f64, f64)> {
     let (mut ai, mut best) = (None, 0.0);
     for (i, p) in x.iter().enumerate() {
-        if let Some(h) = hint {
-            if (p[0] - h).abs() > win {
-                continue;
-            }
-        }
-        if p[1] > best {
-            best = p[1];
-            ai = Some(i);
-        }
+        if let Some(h) = hint { if (p[0] - h).abs() > win { continue; } }
+        if p[1] > best { best = p[1]; ai = Some(i); }
     }
     let a = ai?;
-    let mut l = a;
-    let mut rises = 0;
+    let mut l = a; let mut rises = 0;
     while l > 0 {
         let prev = x[l - 1][1];
-        if prev < 0.05 * best {
-            l -= 1;
-            break;
-        }
-        if prev > x[l][1] {
-            rises += 1;
-            if rises >= 2 {
-                l += 1;
-                break;
-            }
-        } else {
-            rises = 0;
-        }
+        if prev < 0.05 * best { l -= 1; break; }
+        if prev > x[l][1] { rises += 1; if rises >= 2 { l += 1; break; } } else { rises = 0; }
         l -= 1;
     }
-    let mut r = a;
-    rises = 0;
+    let mut r = a; rises = 0;
     while r + 1 < x.len() {
         let next = x[r + 1][1];
-        if next < 0.05 * best {
-            r += 1;
-            break;
-        }
-        if next > x[r][1] {
-            rises += 1;
-            if rises >= 2 {
-                r -= 1;
-                break;
-            }
-        } else {
-            rises = 0;
-        }
+        if next < 0.05 * best { r += 1; break; }
+        if next > x[r][1] { rises += 1; if rises >= 2 { r -= 1; break; } } else { rises = 0; }
         r += 1;
     }
-    if r <= l {
-        return None;
-    }
+    if r <= l { return None; }
     Some((x[l][0], x[r][0]))
 }
