@@ -1,0 +1,16 @@
+# Enforce Unix line endings (LF) across all operating systems for consistent rustfmt checks
+* text=auto eol=lf
+
+# Keep Windows scripts in CRLF if you ever add any
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Mark mass spectrometry / instrument data and binary formats as binary so Git never alters them
+*.raw binary
+*.wiff binary
+*.wiff2 binary
+*.mzml binary
+*.mzML binary
+*.sqlite binary
+*.db binary
