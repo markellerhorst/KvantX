@@ -117,11 +117,11 @@ fn assigning_a_replicate_group_with_one_action() {
     a.apply_click(0, false, false);
     a.apply_click(2, false, true); // files 0..=2
     a.assign_standards(1, 10.0);
-    for i in 0..3 {
+    for sample in a.samples.iter().take(3) {
         assert!(
-            a.samples[i].kind == Kind::Standard
-                && a.samples[i].cells[1].conc == 10.0
-                && a.samples[i].cells[0].conc == 0.0
+            sample.kind == Kind::Standard
+                && sample.cells[1].conc == 10.0
+                && sample.cells[0].conc == 0.0
         );
     }
     assert!(a.samples[3].kind == Kind::Unknown && a.samples[3].cells[1].conc == 0.0);
