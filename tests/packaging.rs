@@ -104,13 +104,7 @@ fn an_existing_release_build_does_not_contain_the_converter() {
 #[test]
 fn private_instrument_data_is_git_ignored() {
     let ignore = read(".gitignore");
-    for pattern in [
-        "/testData/",
-        "*.raw",
-        "*.RAW",
-        "*.mzML",
-        "*.mzml",
-    ] {
+    for pattern in ["/testData/", "*.raw", "*.RAW", "*.mzML", "*.mzml"] {
         assert!(
             ignore.lines().any(|l| l.trim() == pattern),
             ".gitignore lacks {}",
@@ -127,14 +121,8 @@ fn no_instrument_data_lies_in_the_repository_tree() {
             let path = entry.path();
             let name = entry.file_name().to_string_lossy().to_string();
             if path.is_dir() {
-                if ![
-                    "target",
-                    ".git",
-                    "testData",
-                    "tools",
-                    "KvantX-default",
-                ]
-                .contains(&name.as_str())
+                if !["target", ".git", "testData", "tools", "KvantX-default"]
+                    .contains(&name.as_str())
                 {
                     walk(&path, found);
                 }
