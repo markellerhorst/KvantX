@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "datasets": [
+    {
+      "id": "dataset_01",
+      "format": "thermo_raw",
+      "path": "thermo_raw/dataset_01",
+      "acquisition": "LC-MS/MS, targeted, positive mode",
+      "files": 3,
+      "supports": ["import", "metadata", "xic", "peak_detection", "integration"],
+      "expected_results": null
+    },
+    {
+      "id": "dataset_02",
+      "format": "mzml",
+      "path": "mzml/dataset_02.mzML",
+      "acquisition": "LC-MS/MS, centroid",
+      "files": 1,
+      "supports": ["import", "metadata", "xic"],
+      "expected_results": null
+    }
+  ]
+}

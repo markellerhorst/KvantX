@@ -26,7 +26,7 @@ fn only_the_icon_and_the_readme_are_embedded_in_the_program() {
     assert_eq!(
         found,
         vec![
-            "include_bytes!(\"../img/msQuant-ico.ico\"",
+            "include_bytes!(\"../img/kvantx-ico.ico\"",
             "include_str!(\"../../README.md\""
         ]
     );
@@ -38,7 +38,7 @@ fn the_build_script_only_embeds_the_icon() {
     for word in ["tools", "ThermoRawFileParser", "copy", "include"] {
         assert!(!build.contains(word), "build.rs mentions {}", word);
     }
-    assert!(build.contains("msQuant-ico.ico"));
+    assert!(build.contains("kvantx-ico.ico"));
 }
 
 #[test]
@@ -47,7 +47,7 @@ fn the_manifest_excludes_third_party_binaries_and_has_one_program() {
     assert!(
         manifest.contains("exclude =")
             && manifest.contains("\"tools/\"")
-            && manifest.contains("\"test-data/\"")
+            && manifest.contains("\"testData/\"")
             && manifest.contains("\"testData/\"")
     );
     let without_comments: String = manifest
@@ -106,7 +106,6 @@ fn private_instrument_data_is_git_ignored() {
     let ignore = read(".gitignore");
     for pattern in [
         "/testData/",
-        "/test-data/",
         "*.raw",
         "*.RAW",
         "*.mzML",
@@ -132,7 +131,6 @@ fn no_instrument_data_lies_in_the_repository_tree() {
                     "target",
                     ".git",
                     "testData",
-                    "test-data",
                     "tools",
                     "KvantX-default",
                 ]
