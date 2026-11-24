@@ -3,9 +3,9 @@
 mod common;
 
 use common::{add, app, targets};
-use msquant::app::Basis;
-use msquant::formats::targets;
-use msquant::support::testkit;
+use kvantx::app::Basis;
+use kvantx::formats::targets;
+use kvantx::support::testkit;
 
 #[test]
 fn live_target_editing_recomputes_areas() {

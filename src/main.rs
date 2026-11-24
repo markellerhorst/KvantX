@@ -1,18 +1,17 @@
-//! Starts the msQuant window.
+//! Starts the KvantX window.
 #![forbid(unsafe_code)]
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 use eframe::egui;
-use msquant::app::App;
-use msquant::formats::icon;
+use kvantx::app::App;
+use kvantx::formats::icon;
 
 /// Opens the main window, with the application icon if it can be decoded.
 fn main() -> eframe::Result<()> {
     let mut vp = egui::ViewportBuilder::default()
         .with_inner_size([1500.0, 900.0])
         .with_min_inner_size([1280.0, 720.0])
-        .with_title("msQuant");
-    if let Some((rgba, width, height)) = icon::decode_ico(include_bytes!("../img/msQuant-ico.ico"))
-    {
+        .with_title("KvantX");
+    if let Some((rgba, width, height)) = icon::decode_ico(include_bytes!("../img/kvantx-ico.ico")) {
         vp = vp.with_icon(egui::IconData {
             rgba,
             width,
@@ -23,5 +22,5 @@ fn main() -> eframe::Result<()> {
         viewport: vp,
         ..Default::default()
     };
-    eframe::run_native("msQuant", opts, Box::new(|_cc| Ok(Box::new(App::new()))))
+    eframe::run_native("KvantX", opts, Box::new(|_cc| Ok(Box::new(App::new()))))
 }

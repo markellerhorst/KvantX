@@ -1,6 +1,6 @@
 //! CSV output, including the protection against spreadsheet formulas.
 
-use msquant::formats::csv;
+use kvantx::formats::csv;
 
 #[test]
 fn plain_text_is_not_changed() {

@@ -1,7 +1,7 @@
 //! The zlib decoder: fixed and stored blocks and the error cases.
 
-use msquant::support::inflate;
-use msquant::support::testkit;
+use kvantx::support::inflate;
+use kvantx::support::testkit;
 
 #[test]
 fn inflate_fixed_huffman_streams() {

@@ -1,5 +1,5 @@
 //! The MS2 spectrum panel.
-use crate::gui::widgets::{color_rgb, pal, plot_outer_rect, safe_name};
+use crate::gui::widgets::{color_rgb, enlarge_plot_fonts, pal, plot_outer_rect, safe_name};
 
 use crate::app::state::{App, ExportKind};
 use crate::formats::csv;
@@ -96,6 +96,7 @@ impl App {
                     }
                 });
             }
+            let plot_style = enlarge_plot_fonts(ui);
             let mut plot = mzplot!(
                 Plot::new("spec")
                     .height((ui.available_height() - 36.0).max(100.0))
@@ -187,6 +188,7 @@ impl App {
                 }
             });
             let rect = plot_outer_rect(ui, pr.response.rect);
+            ui.set_style(plot_style);
             let (x0, x1, y0, y1) = {
                 let b = pr.transform.bounds();
                 (b.min()[0], b.max()[0], b.min()[1], b.max()[1])

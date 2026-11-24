@@ -22,7 +22,7 @@ fn is_converter_name(p: &Path) -> bool {
 /// `ThermoRawFileParser*` folder in the `tools` folder of the installation.
 ///
 /// Neither the working directory nor `PATH` is searched. A program that is found there can be
-/// planted by anybody who can put a file into a folder the user happens to start msQuant from
+/// planted by anybody who can put a file into a folder the user happens to start KvantX from
 /// (binary planting). Only a file that is called like the converter is accepted.
 pub fn find_trfp(user: &str) -> Option<PathBuf> {
     let user = user.trim().trim_matches('"');
@@ -129,7 +129,7 @@ fn base_cmd(exe: &Path) -> Command {
     }
 }
 
-/// Makes a converter process work in, and use for its own temporary files, the msQuant temporary folder instead of the system one.
+/// Makes a converter process work in, and use for its own temporary files, the KvantX temporary folder instead of the system one.
 fn confine_to_temp(cmd: &mut Command) {
     let work = crate::support::paths::temp_dir();
     cmd.current_dir(&work)

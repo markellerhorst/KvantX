@@ -1,4 +1,4 @@
-//! .quant project file: plain tab-separated text. Raw data is NOT stored (it is re-imported from the
+//! .kvantx project file: plain tab-separated text. Raw data is NOT stored (it is re-imported from the
 //! recorded paths and verified by SHA-256); only targets, parameters and per-file analysis state are.
 use crate::domain::Analyte;
 use crate::support::sha256::Sha256;
@@ -111,7 +111,7 @@ impl ProjectFile {
         let mut lines = text.lines();
         let first = lines.next().unwrap_or("");
         if !first.starts_with(MAGIC) {
-            return Err("not an msQuant project file".into());
+            return Err("not an KvantX project file".into());
         }
         let mut p = ProjectFile::default();
         for (n, l) in lines.enumerate() {
@@ -263,13 +263,16 @@ fn copy_exact(
 }
 
 /// Writes the project (streaming, large raw files never need to fit in memory). Returns (data offset, length) of each embedded blob.
+
+/// Offset and length of the raw file embedded in a container for every sample; `None` for a sample without one.
+pub type EmbeddedBlobs = Vec<Option<(u64, u64)>>;
 /// The data is first written to a file in `tmp_dir` and moved to `path` at the end, so a source inside the same project file stays readable until then.
 pub fn write_container(
     path: &Path,
     pf: &ProjectFile,
     blobs: &[Option<BlobSource>],
     tmp_dir: &Path,
-) -> Result<Vec<Option<(u64, u64)>>, String> {
+) -> Result<EmbeddedBlobs, String> {
     if blobs.len() != pf.samples.len() {
         return Err("internal error: blob list does not match the samples".into());
     }
@@ -285,7 +288,7 @@ pub fn write_container(
     let file_name = path
         .file_name()
         .map(|n| n.to_string_lossy().to_string())
-        .unwrap_or_else(|| "project.quant".into());
+        .unwrap_or_else(|| "project.kvantx".into());
     let nanos = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_nanos())
@@ -306,7 +309,7 @@ pub fn write_container(
     io(out.write_all(&(text.len() as u64).to_le_bytes()), "writing")?;
     io(out.write_all(text.as_bytes()), "writing")?;
     let mut pos = 16 + text.len() as u64;
-    let mut offs: Vec<Option<(u64, u64)>> = vec![None; blobs.len()];
+    let mut offs: EmbeddedBlobs = vec![None; blobs.len()];
     for (i, b) in blobs.iter().enumerate() {
         let Some(src) = b else { continue };
         let (mut f, off, len) = match src {
@@ -353,7 +356,7 @@ fn move_file(from: &Path, to: &Path) -> Result<(), String> {
 }
 
 /// Reads the project text and locates the embedded blobs (without loading them).
-pub fn read_container(path: &Path) -> Result<(ProjectFile, Vec<Option<(u64, u64)>>), String> {
+pub fn read_container(path: &Path) -> Result<(ProjectFile, EmbeddedBlobs), String> {
     let mut f = io(std::fs::File::open(path), &path.display().to_string())?;
     let file_len = io(f.metadata(), "metadata")?.len();
     let mut head = [0u8; 8];

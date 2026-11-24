@@ -1,5 +1,7 @@
 //! Results table, calibration, results matrix and calibration setup.
-use crate::gui::widgets::{dv, dv_conc, export_req_cal, plot_outer_rect, safe_name};
+use crate::gui::widgets::{
+    dv, dv_conc, enlarge_plot_fonts, export_req_cal, plot_outer_rect, safe_name,
+};
 
 use crate::app::state::{App, ExportKind, WEIGHTS};
 use crate::domain::types::{Kind, Mode};
@@ -202,6 +204,7 @@ impl App {
                 None => vec![],
             };
             let (inc_c, exc_c) = (inc_pts.clone(), exc_pts.clone());
+            let plot_style = enlarge_plot_fonts(&mut cols[1]);
             let mut plot = sciplot!(
                 Plot::new("cal")
                     .height((self.panel_height - 170.0).clamp(220.0, 900.0))
@@ -224,6 +227,7 @@ impl App {
                 }
             });
             let rect = plot_outer_rect(&cols[1], pr.response.rect);
+            cols[1].set_style(plot_style);
             let (x0, x1, y0, y1) = {
                 let b = pr.transform.bounds();
                 (b.min()[0], b.max()[0], b.min()[1], b.max()[1])

@@ -55,7 +55,7 @@ fn decode_dib(d: &[u8]) -> Option<(Vec<u8>, u32, u32)> {
         return None;
     }
     let (w, h) = (w as usize, (h2.unsigned_abs() / 2) as usize);
-    let stride = ((w * bpp + 31) / 32) * 4;
+    let stride = (w * bpp).div_ceil(32) * 4;
     let skip = if comp == 3 && hs == 40 { 12 } else { 0 };
     let px = d.get(hs + skip..)?;
     let bytes = bpp / 8;

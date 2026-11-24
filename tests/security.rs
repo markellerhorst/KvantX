@@ -3,15 +3,15 @@
 mod common;
 
 use common::{source_files, tmp_dir};
-use msquant::analysis::alignment;
-use msquant::formats::mzml;
-use msquant::formats::project::{self, BlobSource, ProjectFile};
-use msquant::formats::rawconv;
-use msquant::formats::svg;
-use msquant::support::audit::{self, Audit};
-use msquant::support::fmt;
-use msquant::support::inflate;
-use msquant::support::testkit;
+use kvantx::analysis::alignment;
+use kvantx::formats::mzml;
+use kvantx::formats::project::{self, BlobSource, ProjectFile};
+use kvantx::formats::rawconv;
+use kvantx::formats::svg;
+use kvantx::support::audit::{self, Audit};
+use kvantx::support::fmt;
+use kvantx::support::inflate;
+use kvantx::support::testkit;
 
 /// Packs `(value, number of bits)` fields into bytes, least significant bit first (as deflate does).
 fn pack_bits(fields: &[(u32, u32)]) -> Vec<u8> {
@@ -87,7 +87,7 @@ fn alignment_refuses_absurd_or_non_finite_retention_times() {
 #[test]
 fn a_container_with_wrapping_or_absurd_lengths_is_rejected() {
     let dir = tmp_dir("hostile_container");
-    let path = dir.join("evil.quant");
+    let path = dir.join("evil.kvantx");
     let mut wrap = b"LCMSQNT2".to_vec();
     wrap.extend((u64::MAX - 5).to_le_bytes()); // 16 + length wraps around in unchecked arithmetic
     std::fs::write(&path, &wrap).unwrap();
@@ -130,7 +130,7 @@ fn extracting_an_embedded_file_never_overwrites_an_existing_file() {
         samples: vec![common::sample_rec("a.raw")],
         ..Default::default()
     };
-    let out = dir.join("p.quant");
+    let out = dir.join("p.kvantx");
     let offs =
         project::write_container(&out, &pf, &[Some(BlobSource::File(raw))], &dir.join("tmp"))
             .unwrap();

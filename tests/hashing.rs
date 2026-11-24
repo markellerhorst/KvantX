@@ -1,6 +1,6 @@
 //! SHA-256: known test vectors and the incremental interface.
 
-use msquant::support::sha256::{self, Sha256};
+use kvantx::support::sha256::{self, Sha256};
 
 #[test]
 fn sha256_known_vectors() {

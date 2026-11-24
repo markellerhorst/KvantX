@@ -1,4 +1,4 @@
-//! msQuant: targeted quantification of LC-MS/MS data.
+//! KvantX: targeted quantification of LC-MS/MS data.
 //!
 //! The crate is layered; each layer only uses the layers above it in this list:
 //! [`support`] (infrastructure), [`domain`] (data), [`analysis`] (calculations),

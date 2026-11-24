@@ -106,7 +106,7 @@ pub fn parse_sci(s: &str) -> Option<f64> {
     if let Ok(v) = t.parse::<f64>() {
         return Some(v);
     }
-    let t = t.replace('x', "×").replace('*', "×").replace('·', "×");
+    let t = t.replace(['x', '*', '·'], "×");
     let (mant, rest) = match t.split_once('×') {
         Some((m, r)) => (m.trim().to_string(), r.trim().to_string()),
         None => ("1".to_string(), t.clone()),

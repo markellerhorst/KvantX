@@ -57,6 +57,12 @@ pub struct Sha256 {
     buf: Vec<u8>,
     len: u64,
 }
+impl Default for Sha256 {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Sha256 {
     /// Creates a hasher for an empty message.
     pub fn new() -> Sha256 {

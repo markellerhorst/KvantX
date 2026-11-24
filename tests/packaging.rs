@@ -1,4 +1,4 @@
-//! Packaging: `cargo build --release` produces msQuant only; ThermoRawFileParser is never bundled.
+//! Packaging: `cargo build --release` produces KvantX only; ThermoRawFileParser is never bundled.
 
 mod common;
 
@@ -48,6 +48,7 @@ fn the_manifest_excludes_third_party_binaries_and_has_one_program() {
         manifest.contains("exclude =")
             && manifest.contains("\"tools/\"")
             && manifest.contains("\"test-data/\"")
+            && manifest.contains("\"testData/\"")
     );
     let without_comments: String = manifest
         .lines()
@@ -67,7 +68,7 @@ fn the_manifest_excludes_third_party_binaries_and_has_one_program() {
 fn git_does_not_track_the_converter_or_the_local_data_folder() {
     let ignore = read(".gitignore");
     assert!(ignore.lines().any(|l| l.trim() == "tools/*"));
-    assert!(ignore.lines().any(|l| l.trim() == "msQuant-default/"));
+    assert!(ignore.lines().any(|l| l.trim() == "KvantX-default/"));
 }
 
 #[test]
@@ -75,7 +76,7 @@ fn an_existing_release_build_does_not_contain_the_converter() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("target")
         .join("release");
-    for name in ["msQuant.exe", "msQuant"] {
+    for name in ["kvantx.exe", "kvantx"] {
         let path = root.join(name);
         if !path.is_file() {
             eprintln!(
@@ -98,4 +99,61 @@ fn an_existing_release_build_does_not_contain_the_converter() {
             path.display()
         );
     }
+}
+
+#[test]
+fn private_instrument_data_is_git_ignored() {
+    let ignore = read(".gitignore");
+    for pattern in [
+        "/testData/",
+        "/test-data/",
+        "*.raw",
+        "*.RAW",
+        "*.mzML",
+        "*.mzml",
+    ] {
+        assert!(
+            ignore.lines().any(|l| l.trim() == pattern),
+            ".gitignore lacks {}",
+            pattern
+        );
+    }
+}
+
+/// Instrument data must not sit anywhere in the tree except the ignored data folders.
+#[test]
+fn no_instrument_data_lies_in_the_repository_tree() {
+    fn walk(dir: &Path, found: &mut Vec<String>) {
+        for entry in std::fs::read_dir(dir).unwrap().filter_map(|e| e.ok()) {
+            let path = entry.path();
+            let name = entry.file_name().to_string_lossy().to_string();
+            if path.is_dir() {
+                if ![
+                    "target",
+                    ".git",
+                    "testData",
+                    "test-data",
+                    "tools",
+                    "KvantX-default",
+                ]
+                .contains(&name.as_str())
+                {
+                    walk(&path, found);
+                }
+            } else if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                if ["raw", "mzml", "wiff", "wiff2", "baf", "tdf"]
+                    .contains(&ext.to_lowercase().as_str())
+                {
+                    found.push(path.display().to_string());
+                }
+            }
+        }
+    }
+    let mut found = Vec::new();
+    walk(Path::new(env!("CARGO_MANIFEST_DIR")), &mut found);
+    assert!(
+        found.is_empty(),
+        "instrument data outside the ignored folders: {:?}",
+        found
+    );
 }

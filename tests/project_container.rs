@@ -3,8 +3,8 @@
 mod common;
 
 use common::{sample_rec, tmp_dir};
-use msquant::formats::project::{self, BlobSource, ProjectFile};
-use msquant::support::sha256;
+use kvantx::formats::project::{self, BlobSource, ProjectFile};
+use kvantx::support::sha256;
 
 #[test]
 fn project_container_embeds_raw_files_and_extracts_them_bit_exact() {
@@ -27,7 +27,7 @@ fn project_container_embeds_raw_files_and_extracts_them_bit_exact() {
             sample_rec(&b.to_string_lossy()),
         ],
     };
-    let out = dir.join("p.quant");
+    let out = dir.join("p.kvantx");
     let tmp = dir.join("tmp");
     let offs = project::write_container(
         &out,
@@ -105,7 +105,7 @@ fn old_text_only_projects_still_open() {
         ..Default::default()
     };
     let old = pf.to_text().replace("\ttrue\tfalse\n", "\ttrue\n"); // strip the 'embedded' column an old version did not write
-    let p = dir.join("old.quant");
+    let p = dir.join("old.kvantx");
     std::fs::write(&p, old).unwrap();
     let (back, offs) = project::read_container(&p).unwrap();
     assert_eq!(back.samples.len(), 1);
@@ -122,7 +122,7 @@ fn truncated_container_is_rejected() {
         samples: vec![sample_rec("a.raw")],
         ..Default::default()
     };
-    let out = dir.join("p.quant");
+    let out = dir.join("p.kvantx");
     project::write_container(&out, &pf, &[Some(BlobSource::File(raw))], &dir.join("tmp")).unwrap();
     let bytes = std::fs::read(&out).unwrap();
     std::fs::write(&out, &bytes[..bytes.len() - 5000]).unwrap();
@@ -130,7 +130,7 @@ fn truncated_container_is_rejected() {
     std::fs::write(&out, b"LCMSQNT2\xff\xff\xff\xff\xff\xff\xff\x7f").unwrap();
     assert!(project::read_container(&out).is_err(), "absurd text length");
     assert!(
-        project::write_container(&dir.join("q.quant"), &pf, &[], &dir.join("tmp")).is_err(),
+        project::write_container(&dir.join("q.kvantx"), &pf, &[], &dir.join("tmp")).is_err(),
         "blob list must match the samples"
     );
     let _ = std::fs::remove_dir_all(&dir);
@@ -145,7 +145,7 @@ fn project_blob_reader_returns_the_embedded_bytes() {
         samples: vec![sample_rec("a.mzML")],
         ..Default::default()
     };
-    let out = dir.join("p.quant");
+    let out = dir.join("p.kvantx");
     let offs =
         project::write_container(&out, &pf, &[Some(BlobSource::File(raw))], &dir.join("tmp"))
             .unwrap();

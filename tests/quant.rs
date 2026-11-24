@@ -1,9 +1,9 @@
 //! Chromatography mathematics: target tables, extraction, integration, peak detection, calibration and alignment.
 
-use msquant::analysis::{alignment, calibration, integration, peaks, xic};
-use msquant::formats::mzml;
-use msquant::formats::targets;
-use msquant::support::testkit;
+use kvantx::analysis::{alignment, calibration, integration, peaks, xic};
+use kvantx::formats::mzml;
+use kvantx::formats::targets;
+use kvantx::support::testkit;
 
 #[test]
 fn target_table_parsing() {

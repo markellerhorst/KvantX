@@ -31,8 +31,8 @@ impl App {
         let Some(path) = self
             .dialog()
             .set_title("Save the settings")
-            .add_filter("msQuant settings", &["settings"])
-            .set_file_name("msQuant.settings")
+            .add_filter("KvantX settings", &["settings"])
+            .set_file_name("KvantX.settings")
             .save_file()
         else {
             return;
@@ -52,7 +52,7 @@ impl App {
         let Some(path) = self
             .dialog()
             .set_title("Load settings")
-            .add_filter("msQuant settings", &["settings"])
+            .add_filter("KvantX settings", &["settings"])
             .pick_file()
         else {
             return;

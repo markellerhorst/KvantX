@@ -3,20 +3,23 @@
 **/*.rs.bk
 
 # Local runtime files of the app (settings, audit trail, temporary files)
-msQuant-default/
+KvantX-default/
 results*.csv
-*.quant
+*.kvantx
 
-# Third-party binaries and large data (do not redistribute / too large for GitHub)
+# Private instrument data: never commit (local real-data tests read ./testData, see docs/testdata/)
+/testData/
+*.raw
+*.RAW
+*.mzML
+*.mzml
+
+# Third-party binaries (do not redistribute)
 tools/*
 !tools/ThermoRawFileParser/
 tools/ThermoRawFileParser/*
 !tools/ThermoRawFileParser/README.txt
-test-data/*.raw
-test-data/*.mzML
-test-data/*.mzml
-test-data/data_source.txt
-test-data/target_table_example.csv
+!tools/rename-to-kvantx.ps1
 
 # Editors / OS
 .vscode/
@@ -25,9 +28,7 @@ test-data/target_table_example.csv
 .DS_Store
 Thumbs.db
 desktop.ini
-!test-data/README.txt
 
-# Todo
+# Local notes
 img/design_idea_gui.webp
 todo.md
-roadmap.md

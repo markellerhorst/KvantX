@@ -61,10 +61,10 @@ impl App {
                     ui.spacing_mut().item_spacing.x = 0.0;
                     ui.add_sized([28.0, 18.0], egui::Label::new(RichText::new("#").strong()));
                     let heads = ["Name", "RT (min)", "Precursor m/z", "Product ion m/z"];
-                    for k in 0..4 {
+                    for (k, head) in heads.iter().enumerate() {
                         ui.add_sized(
                             [self.col_w[k], 18.0],
-                            egui::Label::new(RichText::new(heads[k]).strong()),
+                            egui::Label::new(RichText::new(*head).strong()),
                         );
                         let (rect, resp) =
                             ui.allocate_exact_size(egui::vec2(6.0, 18.0), egui::Sense::drag());
@@ -353,6 +353,21 @@ impl App {
 
     /// The credits and the offline README.
     pub(crate) fn ui_info_windows(&mut self, ctx: &egui::Context) {
+        if self.show_about {
+            let mut open = true;
+            egui::Window::new("About KvantX").open(&mut open).collapsible(false).resizable(false).show(ctx, |ui| {
+                ui.heading(format!("KvantX {}", env!("CARGO_PKG_VERSION")));
+                ui.label("Scientific Quantification Engine");
+                ui.weak("Targeted analytical data. Reproducible quantification.");
+                ui.add_space(6.0);
+                ui.label("Not analytically validated: results must be checked by the user.");
+                ui.label("Thermo RAW files are imported through the external ThermoRawFileParser (conversion-backed);");
+                ui.label("mzML files are read by KvantX itself.");
+                ui.add_space(6.0);
+                ui.label("https://github.com/markellerhorst/KvantX  ·  MIT license");
+            });
+            self.show_about = open;
+        }
         if self.show_credits {
             let mut open = true;
             egui::Window::new("Credits & third-party software")
@@ -491,7 +506,7 @@ impl App {
         };
         let mut answer = 0u8; // 1 = OK, 2 = cancel
         let title = if form.welcome {
-            "Welcome to msQuant"
+            "Welcome to KvantX"
         } else {
             "New project"
         };
@@ -531,7 +546,7 @@ impl App {
                 ui.add(egui::TextEdit::singleline(&mut form.user).desired_width(200.0));
                 ui.end_row();
                 ui.label("Raw files");
-                ui.checkbox(&mut form.embed, "Save the raw files inside the .quant file");
+                ui.checkbox(&mut form.embed, "Save the raw files inside the .kvantx file");
                 ui.end_row();
                 if form.ask_trfp {
                     ui.label("ThermoRawFileParser");

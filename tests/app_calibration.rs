@@ -3,9 +3,9 @@
 mod common;
 
 use common::{add, app, targets};
-use msquant::app::{Basis, Kind, Mode};
-use msquant::formats::targets;
-use msquant::support::testkit;
+use kvantx::app::{Basis, Kind, Mode};
+use kvantx::formats::targets;
+use kvantx::support::testkit;
 
 #[test]
 fn standard_curve_quantifies_a_known_sample() {

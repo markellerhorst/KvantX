@@ -1,7 +1,7 @@
 //! The text part of a project file.
 
-use msquant::domain::Analyte;
-use msquant::formats::project::{CellRec, ProjectFile, SampleRec};
+use kvantx::domain::Analyte;
+use kvantx::formats::project::{CellRec, ProjectFile, SampleRec};
 
 #[test]
 fn project_file_round_trip() {

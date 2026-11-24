@@ -52,7 +52,7 @@ impl App {
                     match mzml::parse_bytes(&name, &c.mzml) {
                         Ok(d) => {
                             let _ = tx.send(Msg::Loaded(
-                                d,
+                                Box::new(d),
                                 LoadInfo {
                                     path: p,
                                     raw_sha: h,
@@ -101,7 +101,7 @@ impl App {
                             Ok(d) => {
                                 let h = d.sha256.clone();
                                 let _ = tx.send(Msg::Loaded(
-                                    d,
+                                    Box::new(d),
                                     LoadInfo {
                                         path: rec_path,
                                         raw_sha: h,
@@ -167,7 +167,7 @@ impl App {
                             c.detail
                         );
                         let _ = tx.send(Msg::Loaded(
-                            d,
+                            Box::new(d),
                             LoadInfo {
                                 path: rec_path,
                                 raw_sha: h,
@@ -192,19 +192,19 @@ impl App {
         true
     }
 
-    /// Imports a dropped or selected file according to its extension: `.raw`, `.mzML`, `.quant` or a target table.
+    /// Imports a dropped or selected file according to its extension: `.raw`, `.mzML`, `.kvantx` or a target table.
     pub(crate) fn load_path(&mut self, ctx: &egui::Context, path: &str) {
         let lower = path.to_lowercase();
         if lower.ends_with(".mzml") {
             self.start_load_mzml(ctx, path);
         } else if lower.ends_with(".raw") {
             self.start_load(ctx, path);
-        } else if lower.ends_with(".quant") {
+        } else if lower.ends_with(".kvantx") {
             self.open_project(ctx, Path::new(path));
         } else if lower.ends_with(".csv") || lower.ends_with(".tsv") || lower.ends_with(".txt") {
             self.load_table(Path::new(path));
         } else {
-            self.status = "Unsupported file: drop Thermo .raw or .mzML files, a .csv target table or a .quant project.".into();
+            self.status = "Unsupported file: drop Thermo .raw or .mzML files, a .csv target table or a .kvantx project.".into();
         }
     }
 
@@ -347,7 +347,7 @@ impl App {
                         Ok(d) => {
                             let h = d.sha256.clone();
                             let _ = tx.send(Msg::Loaded(
-                                d,
+                                Box::new(d),
                                 LoadInfo {
                                     path: ps,
                                     raw_sha: h,

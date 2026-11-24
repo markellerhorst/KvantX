@@ -92,10 +92,10 @@ pub fn render(p: &SvgPlot) -> String {
     let (l, r, t, b) = (130.0, 280.0, 50.0, 70.0);
     let (pw, ph) = (W - l - r, H - t - b);
     let [x0, mut x1, y0, mut y1] = p.bounds;
-    if !(x1 > x0) {
+    if x1.partial_cmp(&x0) != Some(std::cmp::Ordering::Greater) {
         x1 = x0 + 1.0;
     }
-    if !(y1 > y0) {
+    if y1.partial_cmp(&y0) != Some(std::cmp::Ordering::Greater) {
         y1 = y0 + 1.0;
     }
     let fx = |x: f64| l + (x - x0) / (x1 - x0) * pw;

@@ -19,7 +19,7 @@ impl Default for App {
 }
 
 impl App {
-    /// Starts msQuant.
+    /// Starts KvantX.
     ///
     /// Creates the default folder, removes temporary files of an interrupted run and opens the audit
     /// trail in the default folder.
@@ -41,13 +41,13 @@ impl App {
     /// Creates the application with the audit trail in `audit_path` (tests use a private file).
     pub fn new_with_audit(audit_path: &str) -> App {
         let (tx, rx) = mpsc::channel();
-        let app = App {
+        App {
             settings: AnalysisSettings::default(),
             analytes: vec![], samples: vec![], fits: vec![], sel_s: 0, sel_a: 0, anchor: 0,
             reason: String::new(), settings_dirty: false,
             out_path: String::new(), data_dir: None,
             status: "Drop a .csv target table (optional) and Thermo .raw / mzML files onto the window, or use the File menu.".into(),
-            show_credits: false, show_readme: false,
+            show_credits: false, show_readme: false, show_about: false,
             grab: None, editing: false, audit: Audit::new(audit_path), user_logged: "N/A".into(), tx, rx, loading: 0,
             trfp_path: String::new(),
             view: View::Xic, scope: Scope::Ions, tab: Tab::Analyze, tic_level: 1, normalize: false, matrix_conc: true,
@@ -60,8 +60,7 @@ impl App {
             layout: Layout::default(), layout_gen: 0, saved_layout: Layout::default(), saved_settings: AnalysisSettings::default(), theme: Theme::System, saved_theme: Theme::System, applied_theme: None, styled_dark: None,
             panel_height: 400.0, new_project_form: None, prefs_dirty: false,
             show_prefs: false, reset_cal: false, zoom_chrom: None, zoom_spec: None, reset_chrom: false, reset_spec: false, spec_last: None, assign_target: 0, assign_conc: 1.0, quick_mz: 100.0, quick_level: 1,
-        };
-        app
+        }
     }
 
     /// Reads the user settings from the default folder, if there are any.

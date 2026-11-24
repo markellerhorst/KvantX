@@ -205,6 +205,10 @@ impl App {
                     self.show_readme = true;
                     ui.close_menu();
                 }
+                if ui.button("About KvantX").clicked() {
+                    self.show_about = true;
+                    ui.close_menu();
+                }
                 if ui.button("Credits & licenses").clicked() {
                     self.show_credits = true;
                     ui.close_menu();
@@ -217,7 +221,7 @@ impl App {
                     ui.close_menu();
                 }
                 ui.separator();
-                ui.label(format!("msQuant v{}", VERSION));
+                ui.label(format!("KvantX v{}", VERSION));
             });
         });
     }

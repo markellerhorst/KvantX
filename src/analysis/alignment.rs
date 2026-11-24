@@ -4,7 +4,7 @@
 fn resample(x: &[[f64; 2]], t0: f64, step: f64, n: usize) -> Vec<f64> {
     let mut out = vec![0.0; n];
     let mut j = 0usize;
-    for i in 0..n {
+    for (i, slot) in out.iter_mut().enumerate() {
         let t = t0 + i as f64 * step;
         if t < x[0][0] || t > x[x.len() - 1][0] {
             continue;
@@ -13,11 +13,11 @@ fn resample(x: &[[f64; 2]], t0: f64, step: f64, n: usize) -> Vec<f64> {
             j += 1;
         }
         if j + 1 >= x.len() {
-            out[i] = x[j][1];
+            *slot = x[j][1];
             continue;
         }
         let (x0, y0, x1, y1) = (x[j][0], x[j][1], x[j + 1][0], x[j + 1][1]);
-        out[i] = if x1 > x0 {
+        *slot = if x1 > x0 {
             y0 + (y1 - y0) * (t - x0) / (x1 - x0)
         } else {
             y0
@@ -27,13 +27,13 @@ fn resample(x: &[[f64; 2]], t0: f64, step: f64, n: usize) -> Vec<f64> {
 }
 
 /// Removes the slowly varying baseline: subtracts a moving average of half-width `w` points.
-fn highpass(v: &mut Vec<f64>, w: usize) {
+fn highpass(v: &mut [f64], w: usize) {
     let n = v.len();
     let mut pre = vec![0.0; n + 1];
     for i in 0..n {
         pre[i + 1] = pre[i] + v[i];
     }
-    let orig = v.clone();
+    let orig = v.to_vec();
     for i in 0..n {
         let lo = i.saturating_sub(w);
         let hi = (i + w + 1).min(n);
@@ -71,12 +71,12 @@ pub fn estimate_shift(r: &[[f64; 2]], x: &[[f64; 2]], max: f64) -> f64 {
     let (mut best, mut best_lag) = (f64::MIN, 0i64);
     for lag in -lags..=lags {
         let mut s = 0.0;
-        for i in 0..n {
+        for (i, ai) in a.iter().enumerate().take(n) {
             let k = i as i64 - lag;
             if k < 0 || k >= n as i64 {
                 continue;
             }
-            s += a[i] * b[k as usize];
+            s += ai * b[k as usize];
         }
         if s > best {
             best = s;

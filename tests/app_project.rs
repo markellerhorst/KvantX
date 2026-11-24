@@ -3,9 +3,9 @@
 mod common;
 
 use common::{add, app, targets};
-use msquant::app::Kind;
-use msquant::formats::project::ProjectFile;
-use msquant::support::audit;
+use kvantx::app::Kind;
+use kvantx::formats::project::ProjectFile;
+use kvantx::support::audit;
 
 #[test]
 fn project_round_trip_keeps_manual_integration() {

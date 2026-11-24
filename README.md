@@ -1,20 +1,22 @@
-<h1 align="center">msQuant</h1>
+<h1 align="center">KvantX</h1>
 
 <p align="center"><img src="img/kvantx-ico.png" width="140" alt="KvantX logo"></p>
+
+<p align="center"><b>Scientific Quantification Engine</b><br><em>Targeted analytical data. Reproducible quantification.</em></p>
 
 <p align="center">
   <a href="https://github.com/markellerhorst/KvantX/actions/workflows/ci.yml"><img src="https://github.com/markellerhorst/KvantX/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
 </p>
 
 KvantX is a fast, light-weight desktop program (Windows, macOS) for **targeted quantification of LC-MS/MS data** from Thermo `.raw` and mzML files.
-You provide a target table (compound, retention time, diagnostic ions); msQuant extracts the chromatograms, integrates the peaks and reports **integrated areas**
+You provide a target table (compound, retention time, diagnostic ions); KvantX extracts the chromatograms, integrates the peaks and reports **integrated areas**
 or **concentrations from standard curves** measured in the same project. Integration boundaries can be corrected by hand, with a reason that is written to a hash-chained audit trail.
 
-> For method development, research and routine targeted analysis. msQuant offers data-integrity features (audit trail, file hashes, reasons for manual changes)
+> For method development, research and routine targeted analysis. KvantX offers data-integrity features (audit trail, file hashes, reasons for manual changes)
 > but is **not validated or certified** for GxP / 21 CFR Part 11 use.
 
 ## Features
-![msQuant screenshot](img/app_screenshot.png)
+![KvantX screenshot](img/app_screenshot.png)
 
 - Import of `.raw` (through ThermoRawFileParser) and **mzML**; data stays in memory
 - Several targets per project, each with its own standard curve; replicates, per-point exclusion, areas-only mode, results matrix
@@ -22,20 +24,21 @@ or **concentrations from standard curves** measured in the same project. Integra
 - Quantify on the **MS2 product-ion area** or the **MS1 precursor area**; ion-ratio checks; retention-time alignment
 - Dockable panels (files, chromatogram, compound information, MS2 spectrum), light / dark / system theme, savable window layouts, zoom with Ctrl +/-/0
 - Hover read-out, zoom box, panning, quick extracted-ion chromatogram for any m/z; export of figures (PNG, SVG) and data (CSV)
-- Undo / redo, `.quant` projects that can embed the raw files, settings stored per session and per project
+- Undo / redo, `.kvantx` projects that can embed the raw files, settings stored per session and per project
 
 ## Build
 Requirements: [Rust](https://rustup.rs) 1.85 or newer (edition 2024). On Windows the *Visual Studio Build Tools* ("Desktop development with C++"); on macOS the Xcode command-line tools.
 
 ```powershell
 git clone https://github.com/markellerhorst/KvantX
-cd msQuant
-cargo run --release          # or: cargo build --release  -> target/release/msQuant(.exe)
-cargo test --no-fail-fast    # tests; real data in test-data/ is optional
+cd KvantX
+cargo run --release          # or: cargo build --release  -> target/release/KvantX(.exe)
+cargo test --no-fail-fast                           # synthetic tests (what CI runs)
+cargo test --test real_data -- --ignored           # local tests with private data in testData/ (docs/testdata/README.md)
 ```
 
 **Thermo `.raw` files** are read by the separate program [ThermoRawFileParser](https://github.com/CompOmics/ThermoRawFileParser/releases) (CompOmics, Apache-2.0).
-It is **not part of msQuant** and never bundled: unzip a release to `tools/ThermoRawFileParser<anything>/` (found automatically) or set its location under
+Thermo import is therefore **conversion-backed**, not native RAW parsing; mzML files are read by KvantX itself. The converter is **not part of KvantX** and never bundled: unzip a release to `tools/ThermoRawFileParser<anything>/` (found automatically) or set its location under
 *Settings → Preferences*. The framework-dependent builds need the **.NET 8 runtime**. mzML files need no converter.
 
 ## How to use
@@ -43,7 +46,7 @@ It is **not part of msQuant** and never bundled: unzip a release to `tools/Therm
 1. Drop a target table (`.csv`) and your `.raw` / `.mzML` files onto the window (an example is in `examples/target_table_example.csv`).
 2. **Calibration** workspace: mark the standard files, give their concentrations per target and check the target table.
 3. **Analyze** workspace: check the integrated peaks (drag the boundary lines if needed, give a reason), select the signal and peak method under *Settings → Analysis settings*.
-4. **Results** workspace or *Export*: areas and concentrations with flags. Save everything as a `.quant` project.
+4. **Results** workspace or *Export*: areas and concentrations with flags. Save everything as a `.kvantx` project.
 
 **Target table** (`name,rt_min,ions`; header optional): `rt_min` in minutes or `n/a` (strongest peak of the run); `ions` are MS2 product ions separated by `;`, the **first is the quantifier**;
 an optional `p:<m/z>` gives the MS1 precursor.
@@ -95,6 +98,12 @@ Flags: *ND* (no peak), *outside cal range*, *PEAK IN BLANK*, *accuracy > 15 %* o
 
 **5. Retention-time alignment** (optional): shift of a run = lag with the highest cross-correlation of its high-pass filtered total-ion chromatogram with the reference run, limited to ± max shift.
 
+## Status and limits
+- KvantX is **not analytically validated**. Software tests establish software behavior on synthetic data, not analytical validity.
+- Supported inputs: Thermo RAW (through the external ThermoRawFileParser) and mzML. No other vendor or technique is supported yet.
+- The detection threshold (signal-to-noise 5) is a peak-detection heuristic, not a limit of detection or quantification. R² alone does not establish calibration quality.
+- CI runs synthetic tests only. Tests with real instrument data run locally (`tests/real_data.rs`); no analytical result has been asserted against real data yet.
+
 ## Development principles
 - **Follow the [Google Rust Style Guide](https://google.github.io/styleguide/rustguide.html)**: documented items, module-qualified calls, no glob imports; `cargo fmt` (100 columns) before every commit.
 - **Avoid external libraries** and prefer a clean, tested re-implementation: SHA-256, zlib, base64, PNG/SVG writers, the mzML reader, the regression and the peak finders are part of this repository.
@@ -106,5 +115,5 @@ Flags: *ND* (no peak), *outside cal range*, *PEAK IN BLANK*, *accuracy > 15 %* o
 ## Credits
 - [ThermoRawFileParser](https://github.com/CompOmics/ThermoRawFileParser) (CompOmics, Apache-2.0), used as an external program; Thermo RawFileReader libraries are subject to Thermo's license.
 - [egui / eframe / egui_plot](https://github.com/emilk/egui) (MIT / Apache-2.0), [rfd](https://github.com/PolyMeilex/rfd) (MIT), `winresource` (MIT), see `THIRD_PARTY_NOTICES.md`.
-- Application icon `img/msQuant-ico.*`.
-- msQuant is released under the MIT license (`LICENSE`).
+- Application icon `img/kvantx-ico.*`.
+- KvantX is released under the MIT license (`LICENSE`).

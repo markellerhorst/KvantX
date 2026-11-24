@@ -5,7 +5,7 @@ use crate::app::layout::Layout;
 use crate::domain::settings::AnalysisSettings;
 use crate::domain::types::{Boundary, Kind, PeakMethod, Theme};
 use crate::domain::{Analyte, MzData};
-use crate::formats::project::{RawSource, SampleRec};
+use crate::formats::project::{EmbeddedBlobs, RawSource, SampleRec};
 use crate::support::audit::Audit;
 use crate::support::history::History;
 use eframe::egui;
@@ -14,7 +14,7 @@ use std::sync::Arc;
 use std::sync::mpsc::{Receiver, Sender};
 
 /// Version shown in the Help menu and written to result exports.
-pub(crate) const VERSION: &str = "0.1.0";
+pub(crate) const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Labels of the regression weightings, indexed like `App::weighting`.
 pub(crate) const WEIGHTS: [&str; 3] = ["none", "1/x", "1/x²"];
@@ -79,12 +79,12 @@ pub struct LoadInfo {
 
 /// Messages from background threads to the UI thread.
 pub(crate) enum Msg {
-    Loaded(MzData, LoadInfo),
+    Loaded(Box<MzData>, LoadInfo),
     Err(String),
     Finished,
     ProjectSaved {
         path: PathBuf,
-        result: Result<Vec<Option<(u64, u64)>>, String>,
+        result: Result<EmbeddedBlobs, String>,
         src_paths: Vec<String>,
         missing: Vec<String>,
     },
@@ -123,7 +123,7 @@ Hulstaert N, Shofstahl J, Sachsenberg T, Walzer M, Barsnes H, Martens L, Perez-R
 It uses Thermo Fisher Scientific's RawFileReader library (Copyright Thermo Fisher Scientific, Inc.), subject to Thermo's license.\n\
 The external-converter approach follows mzmine: https://github.com/mzmine/mzmine (MIT).\n\
 GUI: egui / eframe / egui_plot (MIT or Apache-2.0), https://github.com/emilk/egui; file dialogs: rfd (MIT).\n\
-Project: https://github.com/markellerhorst/msQuant\n\
+Project: https://github.com/markellerhorst/KvantX\n\
 Built with Claude Sonnet 5.5 (Medium); app icon generated with Gemini.";
 
 /// Which chromatogram the chromatogram tab shows.
@@ -255,7 +255,7 @@ pub(crate) struct Pending {
     pub(crate) mismatches: Vec<String>,
 }
 
-/// Application state and user interface of msQuant.
+/// Application state and user interface of KvantX.
 pub struct App {
     /// The analysis parameters (saved with projects and as the settings of the last session).
     pub settings: AnalysisSettings,
@@ -278,6 +278,7 @@ pub struct App {
     pub status: String,
     pub(crate) show_credits: bool,
     pub(crate) show_readme: bool,
+    pub(crate) show_about: bool,
     pub(crate) grab: Option<Boundary>,
     pub(crate) editing: bool,
     /// Public for the integration tests, which drive the application without a window.

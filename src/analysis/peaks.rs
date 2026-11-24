@@ -133,7 +133,11 @@ impl PeakFinder for AdaptiveFinder {
         // strongest prominence first.
         let mut candidates: Vec<(usize, f64)> = (4..trace.len() - 4)
             .filter(|&i| ys[i] > ys[i - 1] && ys[i] >= ys[i + 1])
-            .filter(|&i| expected_rt.map(|rt| (trace[i][0] - rt).abs() <= rt_window).unwrap_or(true))
+            .filter(|&i| {
+                expected_rt
+                    .map(|rt| (trace[i][0] - rt).abs() <= rt_window)
+                    .unwrap_or(true)
+            })
             .map(|i| (i, prominence(&ys, i)))
             .filter(|&(_, p)| p >= self.min_snr * sigma)
             .collect();
@@ -221,7 +225,11 @@ impl AdaptiveFinder {
         if (ys[k] - baseline) < self.min_snr * sigma {
             return None;
         }
-        Some(Peak { start: trace[left][0], end: trace[right][0], apex: trace[k][0] })
+        Some(Peak {
+            start: trace[left][0],
+            end: trace[right][0],
+            apex: trace[k][0],
+        })
     }
 }
 
@@ -230,24 +238,57 @@ impl AdaptiveFinder {
 pub fn auto_peak(x: &[[f64; 2]], hint: Option<f64>, win: f64) -> Option<(f64, f64)> {
     let (mut ai, mut best) = (None, 0.0);
     for (i, p) in x.iter().enumerate() {
-        if let Some(h) = hint { if (p[0] - h).abs() > win { continue; } }
-        if p[1] > best { best = p[1]; ai = Some(i); }
+        if let Some(h) = hint {
+            if (p[0] - h).abs() > win {
+                continue;
+            }
+        }
+        if p[1] > best {
+            best = p[1];
+            ai = Some(i);
+        }
     }
     let a = ai?;
-    let mut l = a; let mut rises = 0;
+    let mut l = a;
+    let mut rises = 0;
     while l > 0 {
         let prev = x[l - 1][1];
-        if prev < 0.05 * best { l -= 1; break; }
-        if prev > x[l][1] { rises += 1; if rises >= 2 { l += 1; break; } } else { rises = 0; }
+        if prev < 0.05 * best {
+            l -= 1;
+            break;
+        }
+        if prev > x[l][1] {
+            rises += 1;
+            if rises >= 2 {
+                l += 1;
+                break;
+            }
+        } else {
+            rises = 0;
+        }
         l -= 1;
     }
-    let mut r = a; rises = 0;
+    let mut r = a;
+    rises = 0;
     while r + 1 < x.len() {
         let next = x[r + 1][1];
-        if next < 0.05 * best { r += 1; break; }
-        if next > x[r][1] { rises += 1; if rises >= 2 { r -= 1; break; } } else { rises = 0; }
+        if next < 0.05 * best {
+            r += 1;
+            break;
+        }
+        if next > x[r][1] {
+            rises += 1;
+            if rises >= 2 {
+                r -= 1;
+                break;
+            }
+        } else {
+            rises = 0;
+        }
         r += 1;
     }
-    if r <= l { return None; }
+    if r <= l {
+        return None;
+    }
     Some((x[l][0], x[r][0]))
 }

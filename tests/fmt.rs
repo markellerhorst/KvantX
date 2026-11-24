@@ -1,6 +1,6 @@
 //! Number formatting: scientific notation, retention times and m/z values.
 
-use msquant::support::fmt;
+use kvantx::support::fmt;
 
 #[test]
 fn scientific_notation_display() {

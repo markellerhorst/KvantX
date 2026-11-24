@@ -3,8 +3,8 @@
 mod common;
 
 use common::{add, app, targets};
-use msquant::app::{Layout, PeakMethod};
-use msquant::domain::settings::AnalysisSettings;
+use kvantx::app::{Layout, PeakMethod};
+use kvantx::domain::settings::AnalysisSettings;
 
 #[test]
 fn reset_restores_every_setting() {
@@ -55,7 +55,7 @@ fn the_standard_curve_can_be_fitted_with_either_method() {
         targets(&mut a);
         for (i, scale) in [1.0, 2.0, 4.0, 8.0].iter().enumerate() {
             add(&mut a, i, 0.0, *scale);
-            a.samples[i].kind = msquant::app::Kind::Standard;
+            a.samples[i].kind = kvantx::app::Kind::Standard;
             a.samples[i].cells[0].conc = *scale;
         }
         a.refit(0);

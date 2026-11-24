@@ -1,9 +1,9 @@
 //! Peak finding: the legacy method, the adaptive method and the smoothing it is built on.
 
-use msquant::analysis::integration;
-use msquant::analysis::peaks::{self, AdaptiveFinder, LegacyFinder, PeakFinder};
-use msquant::analysis::smoothing;
-use msquant::domain::types::PeakMethod;
+use kvantx::analysis::integration;
+use kvantx::analysis::peaks::{self, AdaptiveFinder, LegacyFinder, PeakFinder};
+use kvantx::analysis::smoothing;
+use kvantx::domain::types::PeakMethod;
 
 /// Deterministic pseudo-random numbers (xorshift), so that the tests are reproducible.
 struct Random(u64);
@@ -25,7 +25,12 @@ impl Random {
 }
 
 /// 1000 points over 10 minutes: Gaussian peaks `(center, height, width)` on a baseline, plus noise.
-fn trace(peaks: &[(f64, f64, f64)], baseline: impl Fn(f64) -> f64, sigma: f64, seed: u64) -> Vec<[f64; 2]> {
+fn trace(
+    peaks: &[(f64, f64, f64)],
+    baseline: impl Fn(f64) -> f64,
+    sigma: f64,
+    seed: u64,
+) -> Vec<[f64; 2]> {
     let mut rng = Random(seed);
     (0..1000)
         .map(|i| {
@@ -41,12 +46,16 @@ fn trace(peaks: &[(f64, f64, f64)], baseline: impl Fn(f64) -> f64, sigma: f64, s
 
 #[test]
 fn smoothing_leaves_a_quadratic_unchanged_and_the_derivative_of_a_line_is_its_slope() {
-    let y: Vec<f64> = (0..30).map(|i| 3.0 + 2.0 * i as f64 - 0.5 * (i * i) as f64).collect();
+    let y: Vec<f64> = (0..30)
+        .map(|i| 3.0 + 2.0 * i as f64 - 0.5 * (i * i) as f64)
+        .collect();
     let smoothed = smoothing::smooth(&y);
     for i in 3..27 {
         assert!((smoothed[i] - y[i]).abs() < 1e-9, "point {}", i);
     }
-    let line: Vec<[f64; 2]> = (0..30).map(|i| [i as f64 * 0.01, 5.0 * i as f64 * 0.01]).collect();
+    let line: Vec<[f64; 2]> = (0..30)
+        .map(|i| [i as f64 * 0.01, 5.0 * i as f64 * 0.01])
+        .collect();
     let d = smoothing::derivative(&line);
     for i in 3..27 {
         assert!((d[i] - 5.0).abs() < 1e-9, "point {}", i);
@@ -71,28 +80,50 @@ fn the_median_of_even_and_odd_lists() {
 #[test]
 fn the_adaptive_method_finds_a_noisy_peak_and_its_area_is_right() {
     let x = trace(&[(5.0, 1000.0, 0.05)], |_| 0.0, 10.0, 7);
-    let peak = AdaptiveFinder { min_snr: 3.0 }.find(&x, Some(5.0), 0.3).expect("a peak");
+    let peak = AdaptiveFinder { min_snr: 3.0 }
+        .find(&x, Some(5.0), 0.3)
+        .expect("a peak");
     assert!((peak.apex - 5.0).abs() < 0.03, "apex {}", peak.apex);
-    assert!(peak.start > 4.6 && peak.start < 4.95, "start {}", peak.start);
+    assert!(
+        peak.start > 4.6 && peak.start < 4.95,
+        "start {}",
+        peak.start
+    );
     assert!(peak.end > 5.05 && peak.end < 5.4, "end {}", peak.end);
     let found = integration::integrate(&x, peak.start, peak.end, true);
     let reference = integration::integrate(&x, 4.5, 5.5, true);
-    assert!((found - reference).abs() / reference < 0.05, "{} vs {}", found, reference);
+    assert!(
+        (found - reference).abs() / reference < 0.05,
+        "{} vs {}",
+        found,
+        reference
+    );
 }
 
 #[test]
 fn the_adaptive_method_copes_with_a_sloped_baseline() {
     let x = trace(&[(5.0, 1000.0, 0.05)], |t| 100.0 + 20.0 * t, 5.0, 11);
-    let peak = AdaptiveFinder { min_snr: 3.0 }.find(&x, Some(5.0), 0.3).expect("a peak");
+    let peak = AdaptiveFinder { min_snr: 3.0 }
+        .find(&x, Some(5.0), 0.3)
+        .expect("a peak");
     let found = integration::integrate(&x, peak.start, peak.end, true);
     let reference = integration::integrate(&x, 4.5, 5.5, true);
-    assert!((found - reference).abs() / reference < 0.05, "{} vs {}", found, reference);
+    assert!(
+        (found - reference).abs() / reference < 0.05,
+        "{} vs {}",
+        found,
+        reference
+    );
 }
 
 #[test]
 fn the_adaptive_method_finds_no_peak_in_noise() {
     let x = trace(&[], |_| 50.0, 10.0, 99);
-    assert!(peaks::finder(PeakMethod::Adaptive).find(&x, None, 0.3).is_none());
+    assert!(
+        peaks::finder(PeakMethod::Adaptive)
+            .find(&x, None, 0.3)
+            .is_none()
+    );
 }
 
 #[test]
@@ -100,15 +131,27 @@ fn the_adaptive_method_prefers_the_peak_near_the_expected_retention_time() {
     let x = trace(&[(3.0, 500.0, 0.05), (7.0, 2000.0, 0.05)], |_| 0.0, 5.0, 3);
     let finder = AdaptiveFinder { min_snr: 3.0 };
     assert!((finder.find(&x, Some(3.0), 0.3).unwrap().apex - 3.0).abs() < 0.05);
-    assert!((finder.find(&x, None, 0.3).unwrap().apex - 7.0).abs() < 0.05, "strongest peak without a hint");
-    assert!(finder.find(&x, Some(5.0), 0.3).is_none(), "no peak inside the window");
+    assert!(
+        (finder.find(&x, None, 0.3).unwrap().apex - 7.0).abs() < 0.05,
+        "strongest peak without a hint"
+    );
+    assert!(
+        finder.find(&x, Some(5.0), 0.3).is_none(),
+        "no peak inside the window"
+    );
 }
 
 #[test]
 fn the_adaptive_method_stops_at_the_valley_between_overlapping_peaks() {
     let x = trace(&[(5.0, 1000.0, 0.05), (5.3, 1000.0, 0.05)], |_| 0.0, 2.0, 5);
-    let peak = AdaptiveFinder { min_snr: 3.0 }.find(&x, Some(5.0), 0.1).expect("a peak");
-    assert!(peak.end < 5.25, "end {} is inside the second peak", peak.end);
+    let peak = AdaptiveFinder { min_snr: 3.0 }
+        .find(&x, Some(5.0), 0.1)
+        .expect("a peak");
+    assert!(
+        peak.end < 5.25,
+        "end {} is inside the second peak",
+        peak.end
+    );
     assert!(peak.start < 5.0);
 }
 

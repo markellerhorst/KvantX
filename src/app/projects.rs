@@ -54,13 +54,13 @@ impl App {
             _ => match self
                 .dialog()
                 .set_title("Save project")
-                .add_filter("msQuant project", &["quant"])
-                .set_file_name("project.quant")
+                .add_filter("KvantX project", &["kvantx"])
+                .set_file_name("project.kvantx")
                 .save_file()
             {
                 Some(p) => {
                     if p.extension().is_none() {
-                        p.with_extension("quant")
+                        p.with_extension("kvantx")
                     } else {
                         p
                     }
@@ -119,7 +119,7 @@ impl App {
         if let Some(p) = self
             .dialog()
             .set_title("Open project")
-            .add_filter("msQuant project", &["quant"])
+            .add_filter("KvantX project", &["kvantx"])
             .pick_file()
         {
             self.open_project(ctx, &p);
@@ -295,7 +295,7 @@ impl App {
         self.settings.tol_ppm = form.tol_ppm;
         self.settings.peak_method = form.method;
         let folder = form.folder.trim();
-        self.data_dir = if folder.is_empty() || PathBuf::from(folder) == paths::default_dir_path() {
+        self.data_dir = if folder.is_empty() || Path::new(folder) == paths::default_dir_path() {
             None
         } else {
             Some(PathBuf::from(folder))

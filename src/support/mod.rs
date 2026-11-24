@@ -8,7 +8,7 @@ pub mod fmt;
 pub mod history;
 /// Decompression of zlib streams.
 pub mod inflate;
-/// Locations of the files msQuant writes.
+/// Locations of the files KvantX writes.
 pub mod paths;
 /// SHA-256 hashing.
 pub mod sha256;

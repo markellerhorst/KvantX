@@ -5,7 +5,7 @@
 
 use super::types::{Basis, Mode, PeakMethod};
 
-/// Analysis parameters. The defaults are what msQuant starts with.
+/// Analysis parameters. The defaults are what KvantX starts with.
 #[derive(Clone, Debug, PartialEq)]
 pub struct AnalysisSettings {
     /// Whether the m/z tolerance is in ppm (otherwise in Da).

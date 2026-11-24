@@ -186,8 +186,8 @@ impl App {
         let Some(path) = self
             .dialog()
             .set_title("Save the window layout")
-            .add_filter("msQuant layout", &["layout"])
-            .set_file_name("msQuant.layout")
+            .add_filter("KvantX layout", &["layout"])
+            .set_file_name("KvantX.layout")
             .save_file()
         else {
             return;
@@ -203,7 +203,7 @@ impl App {
         let Some(path) = self
             .dialog()
             .set_title("Load a window layout")
-            .add_filter("msQuant layout", &["layout"])
+            .add_filter("KvantX layout", &["layout"])
             .pick_file()
         else {
             return;

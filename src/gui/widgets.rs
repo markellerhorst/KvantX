@@ -118,3 +118,16 @@ pub(crate) fn plot_outer_rect(ui: &egui::Ui, inner: egui::Rect) -> egui::Rect {
         egui::pos2(inner.right(), ui.min_rect().bottom().max(inner.bottom())),
     )
 }
+
+/// Factor by which the text inside plots (axis labels, tick labels, legend) is enlarged.
+const PLOT_FONT_SCALE: f32 = 1.3;
+
+/// Enlarges all text styles of `ui` for a plot and returns the previous style, which the caller
+/// restores with `ui.set_style(...)` right after the plot was shown.
+pub(crate) fn enlarge_plot_fonts(ui: &mut egui::Ui) -> std::sync::Arc<egui::Style> {
+    let old = ui.style().clone();
+    for font in ui.style_mut().text_styles.values_mut() {
+        font.size *= PLOT_FONT_SCALE;
+    }
+    old
+}

@@ -1,7 +1,7 @@
 //! The mzML reader.
 
-use msquant::formats::mzml;
-use msquant::support::testkit;
+use kvantx::formats::mzml;
+use kvantx::support::testkit;
 
 #[test]
 fn mzml_parsing_of_synthetic_run() {

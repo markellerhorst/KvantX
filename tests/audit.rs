@@ -3,11 +3,11 @@
 mod common;
 
 use common::tmp_dir;
-use msquant::support::audit::{self, Audit};
+use kvantx::support::audit::{self, Audit};
 
 #[test]
 fn audit_trail_detects_tampering_and_continues_across_sessions() {
-    let p = std::env::temp_dir().join(format!("lcmsq_audit_{}.log", std::process::id()));
+    let p = std::env::temp_dir().join(format!("kvantx_audit_{}.log", std::process::id()));
     let _ = std::fs::remove_file(&p);
     let path = p.to_string_lossy().to_string();
     let mut a = audit::Audit::new(&path);
@@ -27,7 +27,7 @@ fn audit_trail_detects_tampering_and_continues_across_sessions() {
 
 #[test]
 fn default_user_is_na() {
-    let p = std::env::temp_dir().join(format!("lcmsq_audit_user_{}.log", std::process::id()));
+    let p = std::env::temp_dir().join(format!("kvantx_audit_user_{}.log", std::process::id()));
     assert_eq!(audit::Audit::new(&p.to_string_lossy()).user, "N/A");
 }
 

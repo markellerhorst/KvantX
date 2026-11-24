@@ -1,7 +1,7 @@
 //! Geometry helpers of the plots: nearest point and peak, zoom window, wheel scaling.
 
 use egui_plot::{PlotBounds, PlotPoint};
-use msquant::gui::plotting::{self, Boundary, Series};
+use kvantx::gui::plotting::{self, Boundary, Series};
 
 #[test]
 fn hover_picks_the_nearest_trace_and_point() {

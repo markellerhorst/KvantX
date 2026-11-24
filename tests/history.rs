@@ -1,6 +1,6 @@
 //! The bounded undo and redo history.
 
-use msquant::support::history::History;
+use kvantx::support::history::History;
 
 #[test]
 fn history_is_bounded_and_ordered() {

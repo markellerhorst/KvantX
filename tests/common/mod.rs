@@ -3,17 +3,17 @@
 //! Every test file is its own crate and uses a different subset of these functions.
 #![allow(dead_code)]
 
-use msquant::app::{App, LoadInfo, PeakMethod};
-use msquant::formats::mzml;
-use msquant::formats::project::{RawSource, SampleRec};
-use msquant::formats::targets;
-use msquant::support::testkit;
+use kvantx::app::{App, LoadInfo, PeakMethod};
+use kvantx::formats::mzml;
+use kvantx::formats::project::{RawSource, SampleRec};
+use kvantx::formats::targets;
+use kvantx::support::testkit;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 /// A fresh, empty temporary folder that is unique for this process and `name`.
 pub fn tmp_dir(name: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("msquant_test_{}_{}", std::process::id(), name));
+    let dir = std::env::temp_dir().join(format!("kvantx_test_{}_{}", std::process::id(), name));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).expect("create temporary test folder");
     dir
@@ -38,7 +38,7 @@ pub fn sample_rec(path: &str) -> SampleRec {
 pub fn app() -> App {
     static COUNTER: AtomicUsize = AtomicUsize::new(0);
     let trail = std::env::temp_dir().join(format!(
-        "msquant_test_audit_{}_{}.log",
+        "kvantx_test_audit_{}_{}.log",
         std::process::id(),
         COUNTER.fetch_add(1, Ordering::SeqCst)
     ));

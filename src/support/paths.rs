@@ -1,4 +1,4 @@
-//! Locations of the files that msQuant writes.
+//! Locations of the files that KvantX writes.
 //!
 //! Everything the program needs for itself (settings, audit trails of unsaved sessions and temporary files) lives in
 //! the folder [`DEFAULT_DIR_NAME`] in the root folder of the installation. Files the user creates
@@ -8,7 +8,7 @@
 use std::path::{Path, PathBuf};
 
 /// Name of the folder next to the program that holds settings, audit trail and temporary files.
-pub const DEFAULT_DIR_NAME: &str = "msQuant-default";
+pub const DEFAULT_DIR_NAME: &str = "KvantX-default";
 
 /// Derives the installation root from the path of the executable.
 ///

@@ -491,11 +491,15 @@ impl App {
         let (t0, t1) = (c.start - sm.rt_shift, c.end - sm.rt_shift);
         let sp = &sm.data.spectra;
         let (mut best, mut top) = (None, 0.0f64);
-        for j in sp.partition_point(|x| x.rt < t0)..sp.len() {
-            if sp[j].rt > t1 {
+        for (j, spec) in sp
+            .iter()
+            .enumerate()
+            .skip(sp.partition_point(|x| x.rt < t0))
+        {
+            if spec.rt > t1 {
                 break;
             }
-            let v = xic::intensity_near(&sp[j].mz, &sp[j].inten, ion, tol);
+            let v = xic::intensity_near(&spec.mz, &spec.inten, ion, tol);
             if v > top {
                 top = v;
                 best = Some(j);

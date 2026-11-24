@@ -14,7 +14,7 @@ impl App {
         let curve = self.settings.mode == Mode::Curve;
         let mut o = String::new();
         o += &format!(
-            "# msQuant v{} export {} user={}\n",
+            "# KvantX v{} export {} user={}\n",
             VERSION,
             audit::iso_now(),
             self.audit.user

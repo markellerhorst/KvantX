@@ -3,8 +3,8 @@
 mod common;
 
 use common::{add, app, targets};
-use msquant::gui::plotting;
-use msquant::support::testkit;
+use kvantx::gui::plotting;
+use kvantx::support::testkit;
 
 #[test]
 fn spectrum_panel_scan_selection() {

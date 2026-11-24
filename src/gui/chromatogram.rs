@@ -1,5 +1,7 @@
 //! Chromatogram views: the target view with editable boundaries, overlays and the quick extracted-ion chromatogram.
-use crate::gui::widgets::{dv_mz, dv_rt, pal, plot_outer_rect, safe_name, svg_series};
+use crate::gui::widgets::{
+    dv_mz, dv_rt, enlarge_plot_fonts, pal, plot_outer_rect, safe_name, svg_series,
+};
 
 use crate::analysis::integration;
 use crate::app::analysis_ops::{SummaryTrace, chrom};
@@ -65,6 +67,7 @@ impl App {
                 plotting::scan_info(&self.samples[f].data, l, j)
             };
             ui.weak("drag a box = zoom · grab a boundary line to move it · click = pin the scan · right-click = menu");
+            let plot_style = enlarge_plot_fonts(ui);
             let mut plot = rtplot!(
                 Plot::new("xic")
                     .height((self.panel_height - 200.0).max(160.0))
@@ -134,6 +137,7 @@ impl App {
             });
             clicked = pr.response.clicked() && !capturing;
             let rect = plot_outer_rect(ui, pr.response.rect);
+            ui.set_style(plot_style);
             let (x0, x1, y0, y1) = {
                 let b = pr.transform.bounds();
                 (b.min()[0], b.max()[0], b.min()[1], b.max()[1])
@@ -463,6 +467,7 @@ impl App {
                 plotting::scan_info(&self.samples[f].data, l, j)
             };
             ui.weak("drag a box = zoom · click = pin the nearest MS2 scan · right-click = menu");
+            let plot_style = enlarge_plot_fonts(ui);
             let mut plot = rtplot!(
                 Plot::new(id)
                     .height((self.panel_height - 60.0).max(160.0))
@@ -491,6 +496,7 @@ impl App {
             });
             clicked = pr.response.clicked() && !capturing;
             let rect = plot_outer_rect(ui, pr.response.rect);
+            ui.set_style(plot_style);
             let (x0, x1, y0, y1) = {
                 let b = pr.transform.bounds();
                 (b.min()[0], b.max()[0], b.min()[1], b.max()[1])

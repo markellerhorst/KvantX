@@ -11,7 +11,7 @@ impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         while let Ok(m) = self.rx.try_recv() {
             match m {
-                Msg::Loaded(d, info) => self.add_sample(d, info),
+                Msg::Loaded(d, info) => self.add_sample(*d, info),
                 Msg::Err(e) => self.status = format!("Load failed: {}", e),
                 Msg::Finished => self.loading = self.loading.saturating_sub(1),
                 Msg::ProjectSaved {
@@ -116,7 +116,7 @@ impl eframe::App for App {
         }
 
         let title = format!(
-            "msQuant - {}",
+            "KvantX - {}",
             self.project_path
                 .as_ref()
                 .and_then(|p| p.file_name())

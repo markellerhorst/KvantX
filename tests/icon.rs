@@ -1,7 +1,7 @@
 //! The application icon decoder.
 
-use msquant::formats::icon;
-use msquant::support::testkit;
+use kvantx::formats::icon;
+use kvantx::support::testkit;
 
 fn ico(data: &[u8], w: u8, h: u8) -> Vec<u8> {
     let mut o = vec![0, 0, 1, 0, 1, 0, w, h, 0, 0, 1, 0, 32, 0];
@@ -65,7 +65,7 @@ fn ico_with_png_entry_decodes_including_sub_filter() {
 fn the_real_app_icon_decodes_when_present() {
     let p = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("img")
-        .join("msQuant-ico.ico");
+        .join("kvantx-ico.ico");
     if let Ok(bytes) = std::fs::read(&p) {
         match icon::decode_ico(&bytes) {
             Some((rgba, w, h)) => assert_eq!(rgba.len(), (w * h * 4) as usize),

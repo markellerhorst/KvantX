@@ -3,7 +3,7 @@
 mod common;
 
 use common::{add, app, targets};
-use msquant::app::{App, Kind};
+use kvantx::app::{App, Kind};
 
 #[test]
 fn explorer_style_selection() {
