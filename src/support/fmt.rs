@@ -5,6 +5,23 @@
 //! instead: it sits high next to the exponent digits like a superscript minus (`10¯²`).
 const SUP: [char; 10] = ['⁰', '¹', '²', '³', '⁴', '⁵', '⁶', '⁷', '⁸', '⁹'];
 
+/// Label of a tick on an m/z axis: as many decimals as the grid step needs and no more (`100`,
+/// `100.5`, `100.25`), so that the labels stay short and none is dropped for lack of room.
+#[must_use]
+pub fn axis_mz(value: f64, step: f64) -> String {
+    let decimals = if step.is_finite() && step > 0.0 {
+        (0..=4usize)
+            .find(|&d| {
+                let scaled = step * 10f64.powi(d as i32);
+                (scaled - scaled.round()).abs() < 1e-6 * scaled.max(1.0)
+            })
+            .unwrap_or(4)
+    } else {
+        2
+    };
+    format!("{:.*}", decimals, value)
+}
+
 /// Superscript digits for an exponent; a negative sign becomes a macron (see the module documentation).
 fn sup(n: i32) -> String {
     let mut s = String::new();

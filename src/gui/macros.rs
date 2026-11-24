@@ -47,7 +47,7 @@ macro_rules! rtplot {
 macro_rules! mzplot {
     ($p:expr, $norm:expr) => {{
         let mut p = $p
-            .x_axis_formatter(|m, _| fmt::mz4(m.value))
+            .x_axis_formatter(|m, _| fmt::axis_mz(m.value, m.step_size))
             .y_axis_formatter(move |m, _| {
                 if $norm {
                     fmt::pct0(m.value)

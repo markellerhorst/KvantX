@@ -50,3 +50,17 @@ fn retention_times_use_two_decimals_and_mz_keeps_its_digits() {
     assert_eq!(fmt::pct0(40.0), "40%");
     assert_eq!(fmt::pct0(100.0), "100%");
 }
+
+#[test]
+fn mz_axis_labels_are_short_and_use_as_many_decimals_as_the_grid_step_needs() {
+    assert_eq!(fmt::axis_mz(100.0, 10.0), "100");
+    assert_eq!(fmt::axis_mz(250.0, 100.0), "250");
+    assert_eq!(fmt::axis_mz(100.5, 0.5), "100.5");
+    assert_eq!(fmt::axis_mz(100.25, 0.05), "100.25");
+    assert_eq!(
+        fmt::axis_mz(100.0, 0.0),
+        "100.00",
+        "an invalid step falls back to two decimals"
+    );
+    assert_eq!(fmt::axis_mz(100.0, f64::NAN), "100.00");
+}

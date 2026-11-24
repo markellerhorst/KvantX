@@ -91,11 +91,34 @@ impl App {
         let reset_cal_now = std::mem::take(&mut self.reset_cal);
         let mut cal_req: Option<(ExportKind, SvgPlot, egui::Rect, String)> = None;
         let mut cal_reset = false;
-        ui.columns(2, |cols| {
+        let full_w = ui.available_width();
+        let table_h = (self.panel_height * 0.38).clamp(140.0, 420.0);
+        let plot_h = (self.panel_height * 0.45).clamp(220.0, 800.0);
+        let origin = ui.cursor().min;
+        let top_rect = egui::Rect::from_min_size(origin, egui::vec2(full_w, table_h));
+        let bottom_rect = egui::Rect::from_min_size(
+            egui::pos2(origin.x, origin.y + table_h + 6.0),
+            egui::vec2(full_w, plot_h + 6.0),
+        );
+        let full_rect = top_rect.union(bottom_rect);
+        // the replicate table above, the calibration curve below
+        let mut cols = [
+            ui.new_child(
+                egui::UiBuilder::new()
+                    .id_salt("calibration_table_area")
+                    .max_rect(top_rect),
+            ),
+            ui.new_child(
+                egui::UiBuilder::new()
+                    .id_salt("calibration_plot_area")
+                    .max_rect(bottom_rect),
+            ),
+        ];
+        {
             cols[0].push_id("calt", |ui| {
                 egui::ScrollArea::vertical()
                     .id_salt("calscroll")
-                    .max_height(240.0)
+                    .max_height(table_h)
                     .show(ui, |ui| {
                         egui::Grid::new("caltab").striped(true).show(ui, |ui| {
                             for h in ["Level / file", "Conc", "Area", "Accuracy %", "Use"] {
@@ -207,7 +230,7 @@ impl App {
             let plot_style = enlarge_plot_fonts(&mut cols[1]);
             let mut plot = sciplot!(
                 Plot::new("cal")
-                    .height((self.panel_height - 170.0).clamp(220.0, 900.0))
+                    .height(plot_h)
                     .x_axis_label(format!("Concentration ({})", units))
                     .y_axis_label("Area (intensity·s)")
             );
@@ -305,7 +328,8 @@ impl App {
                     }
                 }
             }
-        });
+        }
+        ui.allocate_rect(full_rect, egui::Sense::hover());
         if cal_reset {
             self.reset_cal = true;
             ui.ctx().request_repaint();

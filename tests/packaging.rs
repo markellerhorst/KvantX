@@ -45,11 +45,16 @@ fn the_build_script_only_embeds_the_icon() {
 fn the_manifest_excludes_third_party_binaries_and_has_one_program() {
     let manifest = read("Cargo.toml");
     assert!(
-        manifest.contains("exclude =")
-            && manifest.contains("\"tools/\"")
-            && manifest.contains("\"testData/\"")
-            && manifest.contains("\"testData/\"")
+        manifest.contains("exclude ="),
+        "Cargo.toml has no exclude list"
     );
+    for entry in ["tools/", "testData/", "KvantX-default/"] {
+        assert!(
+            manifest.contains(&format!("\"{}\"", entry)),
+            "Cargo.toml: exclude lacks {}",
+            entry
+        );
+    }
     let without_comments: String = manifest
         .lines()
         .filter(|l| !l.trim_start().starts_with('#'))
@@ -121,8 +126,15 @@ fn no_instrument_data_lies_in_the_repository_tree() {
             let path = entry.path();
             let name = entry.file_name().to_string_lossy().to_string();
             if path.is_dir() {
-                if !["target", ".git", "testData", "tools", "KvantX-default"]
-                    .contains(&name.as_str())
+                if ![
+                    "target",
+                    ".git",
+                    "testData",
+                    "test-data",
+                    "tools",
+                    "KvantX-default",
+                ]
+                .contains(&name.as_str())
                 {
                     walk(&path, found);
                 }
