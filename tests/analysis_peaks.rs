@@ -57,8 +57,8 @@ fn smoothing_leaves_a_quadratic_unchanged_and_the_derivative_of_a_line_is_its_sl
         .map(|i| [i as f64 * 0.01, 5.0 * i as f64 * 0.01])
         .collect();
     let d = smoothing::derivative(&line);
-    for i in 3..27 {
-        assert!((d[i] - 5.0).abs() < 1e-9, "point {}", i);
+    for (i, &val) in (3..).zip(&d[3..27]) {
+        assert!((val - 5.0).abs() < 1e-9, "point {}", i);
     }
 }
 

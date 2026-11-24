@@ -321,8 +321,8 @@ impl App {
                     s.show = false;
                 }
             }
-            for k in lo..=hi {
-                self.samples[k].show = true;
+            for sample in &mut self.samples[lo..=hi] {
+                sample.show = true;
             }
             self.sel_s = i;
         } else if ctrl {

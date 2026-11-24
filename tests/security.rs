@@ -45,7 +45,7 @@ fn decompression_bombs_are_stopped_by_the_size_limit() {
 fn an_over_subscribed_huffman_table_is_an_error_not_a_panic() {
     // dynamic block whose 19 code-length codes all have length 1: 19 codes do not fit in 1 bit
     let mut fields = vec![(1, 1), (2, 2), (0, 5), (0, 5), (15, 4)];
-    fields.extend(std::iter::repeat((1, 3)).take(19));
+    fields.extend(std::iter::repeat_n((1, 3), 19));
     let mut stream = vec![0x78, 0x9c];
     stream.extend(pack_bits(&fields));
     stream.extend([0u8; 16]);

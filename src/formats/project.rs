@@ -263,7 +263,7 @@ fn copy_exact(
 }
 
 /// Writes the project (streaming, large raw files never need to fit in memory). Returns (data offset, length) of each embedded blob.
-
+///
 /// Offset and length of the raw file embedded in a container for every sample; `None` for a sample without one.
 pub type EmbeddedBlobs = Vec<Option<(u64, u64)>>;
 /// The data is first written to a file in `tmp_dir` and moved to `path` at the end, so a source inside the same project file stays readable until then.
