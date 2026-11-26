@@ -19,13 +19,12 @@ fn project_container_embeds_raw_files_and_extracts_them_bit_exact() {
     let pf = ProjectFile {
         app_version: "t".into(),
         user: "u".into(),
-        params: vec![],
-        analytes: vec![],
         samples: vec![
             sample_rec(&a.to_string_lossy()),
             sample_rec("C:\\gone\\missing.raw"),
             sample_rec(&b.to_string_lossy()),
         ],
+        ..Default::default()
     };
     let out = dir.join("p.kvantx");
     let tmp = dir.join("tmp");
@@ -98,26 +97,61 @@ fn project_container_embeds_raw_files_and_extracts_them_bit_exact() {
 }
 
 #[test]
-fn old_text_only_projects_still_open() {
-    let dir = tmp_dir("legacy");
+fn a_project_without_embedded_files_is_a_container_too() {
+    let dir = tmp_dir("no_blobs");
     let pf = ProjectFile {
         samples: vec![sample_rec("x.raw")],
         ..Default::default()
     };
-    let old = pf.to_text().replace("\ttrue\tfalse\n", "\ttrue\n"); // strip the 'embedded' column an old version did not write
-    let p = dir.join("old.kvantx");
-    std::fs::write(&p, old).unwrap();
-    let (back, offs) = project::read_container(&p).unwrap();
+    let out = dir.join("p.kvantx");
+    project::write_container(&out, &pf, &[None], &dir.join("tmp")).unwrap();
+    let (back, offs) = project::read_container(&out).unwrap();
     assert_eq!(back.samples.len(), 1);
     assert_eq!(offs, vec![None]);
+    assert_eq!(&std::fs::read(&out).unwrap()[..8], b"KVANTX\x00\x01");
     let _ = std::fs::remove_dir_all(&dir);
 }
 
 #[test]
-fn truncated_container_is_rejected() {
-    let dir = tmp_dir("trunc");
+fn old_quant_projects_and_other_files_are_not_opened() {
+    let dir = tmp_dir("not_a_project");
+    let p = dir.join("old.kvantx");
+    std::fs::write(&p, b"LCMSQNT2\x10\0\0\0\0\0\0\0some old text part").unwrap();
+    assert!(
+        project::read_container(&p)
+            .unwrap_err()
+            .contains("not a KvantX project")
+    );
+    std::fs::write(&p, b"LCMSQUANT-PROJECT\t1\nS\tx.raw\n").unwrap();
+    assert!(project::read_container(&p).is_err());
+    std::fs::write(&p, b"hi").unwrap();
+    assert!(
+        project::read_container(&p)
+            .unwrap_err()
+            .contains("too short")
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn a_newer_container_layout_is_refused() {
+    let dir = tmp_dir("newer_layout");
+    let p = dir.join("new.kvantx");
+    let mut bytes = b"KVANTX\x00\x02".to_vec();
+    bytes.extend([0u8; 8]);
+    std::fs::write(&p, bytes).unwrap();
+    let err = project::read_container(&p).unwrap_err();
+    assert!(
+        err.contains("unsupported project container layout"),
+        "{err}"
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// A valid container with one embedded file, as bytes.
+fn container_bytes(dir: &std::path::Path) -> (std::path::PathBuf, Vec<u8>) {
     let raw = dir.join("a.raw");
-    std::fs::write(&raw, vec![7u8; 100_000]).unwrap();
+    std::fs::write(&raw, vec![7u8; 1000]).unwrap();
     let pf = ProjectFile {
         samples: vec![sample_rec("a.raw")],
         ..Default::default()
@@ -125,14 +159,53 @@ fn truncated_container_is_rejected() {
     let out = dir.join("p.kvantx");
     project::write_container(&out, &pf, &[Some(BlobSource::File(raw))], &dir.join("tmp")).unwrap();
     let bytes = std::fs::read(&out).unwrap();
-    std::fs::write(&out, &bytes[..bytes.len() - 5000]).unwrap();
-    assert!(project::read_container(&out).is_err());
-    std::fs::write(&out, b"LCMSQNT2\xff\xff\xff\xff\xff\xff\xff\x7f").unwrap();
-    assert!(project::read_container(&out).is_err(), "absurd text length");
+    (out, bytes)
+}
+
+#[test]
+fn truncated_or_extended_containers_are_rejected() {
+    let dir = tmp_dir("trunc");
+    let (out, bytes) = container_bytes(&dir);
+    std::fs::write(&out, &bytes[..bytes.len() - 500]).unwrap();
+    assert!(
+        project::read_container(&out).is_err(),
+        "truncated inside the embedded file"
+    );
+    let mut longer = bytes.clone();
+    longer.extend([0u8; 10]);
+    std::fs::write(&out, &longer).unwrap();
+    assert!(
+        project::read_container(&out)
+            .unwrap_err()
+            .contains("unexpected data")
+    );
+    std::fs::write(&out, b"KVANTX\x00\x01\xff\xff\xff\xff\xff\xff\xff\x7f").unwrap();
+    assert!(
+        project::read_container(&out).is_err(),
+        "absurd manifest length"
+    );
+    let pf = ProjectFile {
+        samples: vec![sample_rec("a.raw")],
+        ..Default::default()
+    };
     assert!(
         project::write_container(&dir.join("q.kvantx"), &pf, &[], &dir.join("tmp")).is_err(),
         "blob list must match the samples"
     );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn a_damaged_manifest_is_rejected() {
+    let dir = tmp_dir("damaged");
+    let (out, mut bytes) = container_bytes(&dir);
+    bytes[16] = b'X'; // first byte of the manifest: no longer JSON
+    std::fs::write(&out, &bytes).unwrap();
+    assert!(project::read_container(&out).is_err());
+    let (_, mut bytes) = container_bytes(&dir);
+    bytes[30] = 0xff; // not UTF-8
+    std::fs::write(&out, &bytes).unwrap();
+    assert!(project::read_container(&out).unwrap_err().contains("UTF-8"));
     let _ = std::fs::remove_dir_all(&dir);
 }
 

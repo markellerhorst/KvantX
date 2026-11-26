@@ -54,6 +54,7 @@ MzData + Analyte ─▶ analysis::xic ─▶ analysis::peaks (PeakFinder) ─▶
 | `src/lib.rs` | Declares the layers and forbids `unsafe` code. |
 | `src/support/sha256.rs` | Incremental SHA-256. |
 | `src/support/inflate.rs` | Size-limited zlib decoder. |
+| `src/support/json.rs` | Strict, size- and depth-limited JSON reader and writer (RFC 8259). |
 | `src/support/audit.rs` | Hash-chained audit trails: logging, moving, verification. |
 | `src/support/paths.rs` | Locations of settings, layout, audit trails and temporary files. |
 | `src/support/history.rs` | Bounded undo / redo stack. |
@@ -71,7 +72,7 @@ MzData + Analyte ─▶ analysis::xic ─▶ analysis::peaks (PeakFinder) ─▶
 | `src/analysis/alignment.rs` | Retention-time alignment by cross-correlation. |
 | `src/formats/mzml.rs` | mzML reader (base64, zlib, precursor ions). |
 | `src/formats/rawconv.rs` | Finds and runs ThermoRawFileParser, confined to the temporary folder. |
-| `src/formats/project.rs` | `.kvantx` text part and container with embedded raw files. |
+| `src/formats/project.rs` | The `.kvantx` project: versioned JSON manifest (schema 1, validated field by field) in a container with optional embedded raw files; see `docs/PROJECT_FORMAT.md`. |
 | `src/formats/targets.rs` | Parser of the target table. |
 | `src/formats/csv.rs` | CSV fields with protection against spreadsheet formulas. |
 | `src/formats/svg.rs` | SVG figures. |
@@ -102,7 +103,7 @@ MzData + Analyte ─▶ analysis::xic ─▶ analysis::peaks (PeakFinder) ─▶
 | `build.rs` | Embeds the icon into the Windows executable. |
 
 ## Tests (`tests/`)
-One file per topic; `common/mod.rs` holds shared helpers. Unit-level: `fmt`, `csv`, `figures`, `icon`, `hashing`, `inflate`, `mzml`, `history`, `audit`, `paths`, `project_file`, `project_container`,
+One file per topic; `common/mod.rs` holds shared helpers. Unit-level: `fmt`, `csv`, `figures`, `icon`, `hashing`, `inflate`, `mzml`, `history`, `audit`, `paths`, `project_file` (manifest schema), `project_container`, `json`,
 `quant` (extraction, integration, calibration, alignment), `analysis_peaks` (both peak methods, smoothing, noise), `settings_and_layout` (settings, layout, theme), `plotting`.
 Application model without a window: `app_calibration`, `app_targets`, `app_selection`, `app_history`, `app_project`, `app_spectrum`, `app_settings`.
 Rules: `layering` (layer dependencies), `security` (hostile input), `packaging` (nothing third-party embedded). `real_data` runs against private instrument data from `testData/`; its tests are `#[ignore]`d (not run by `cargo test` or CI) and fail, not skip, when data is missing (`docs/testdata/README.md`).

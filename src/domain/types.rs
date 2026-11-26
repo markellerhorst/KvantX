@@ -121,3 +121,41 @@ pub enum Boundary {
     Start,
     End,
 }
+
+/// How a file was brought into KvantX.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum ImportRoute {
+    /// An mzML file read by KvantX itself.
+    #[default]
+    Direct,
+    /// A vendor file converted to mzML by an external program (ThermoRawFileParser for Thermo RAW).
+    Conversion,
+}
+
+impl ImportRoute {
+    /// Short key stored in projects.
+    #[must_use]
+    pub fn key(self) -> &'static str {
+        match self {
+            ImportRoute::Direct => "direct",
+            ImportRoute::Conversion => "conversion",
+        }
+    }
+
+    /// Parses a stored key; unknown text gives `None`.
+    #[must_use]
+    pub fn from_key(key: &str) -> Option<ImportRoute> {
+        [ImportRoute::Direct, ImportRoute::Conversion]
+            .into_iter()
+            .find(|r| r.key() == key)
+    }
+}
+
+/// Provenance of an import, stored in the project.
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
+pub struct ImportInfo {
+    /// Direct reading or conversion.
+    pub route: ImportRoute,
+    /// Details of the import: the format, and for a conversion the converter, its version and parameters.
+    pub detail: String,
+}

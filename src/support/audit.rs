@@ -124,6 +124,12 @@ impl Audit {
         self.recent.push(line);
     }
 
+    /// Number of entries and hash of the last entry (`GENESIS` for an empty trail), for the project manifest.
+    #[must_use]
+    pub fn head(&self) -> (u64, String) {
+        (self.bodies().len() as u64, self.last.clone())
+    }
+
     /// The entries of this trail without their hash, oldest first.
     #[must_use]
     pub fn bodies(&self) -> Vec<String> {
@@ -213,4 +219,21 @@ pub fn verify(path: &str) -> Result<usize, String> {
         n += 1;
     }
     Ok(n)
+}
+
+/// Hash of the `entries`-th entry (counted from 1) of the trail in `path`, if it has that many.
+///
+/// A project records the number of entries and the hash of the last one when it is saved; the trail
+/// may have grown since, so the check compares the hash at that position.
+#[must_use]
+pub fn hash_at(path: &str, entries: usize) -> Option<String> {
+    if entries == 0 {
+        return Some("GENESIS".to_string());
+    }
+    let text = std::fs::read_to_string(path).ok()?;
+    let line = text
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .nth(entries - 1)?;
+    line.rsplit_once('|').map(|(_, hash)| hash.to_string())
 }

@@ -8,6 +8,8 @@ pub mod fmt;
 pub mod history;
 /// Decompression of zlib streams.
 pub mod inflate;
+/// Strict JSON reader and writer.
+pub mod json;
 /// Locations of the files KvantX writes.
 pub mod paths;
 /// SHA-256 hashing.

@@ -246,6 +246,7 @@ impl App {
                 }
             );
             self.samples[s].cells[a].logged = (st, en);
+            self.samples[s].cells[a].reason = self.reason.trim().to_string();
             self.audit.log("MANUAL_INTEGRATION", &msg);
         }
     }
@@ -292,6 +293,7 @@ impl App {
             sm.shift_ui = shift;
             for c in sm.cells.iter_mut() {
                 c.manual = false;
+                c.reason.clear();
             }
         }
         self.recompute_sample(s);

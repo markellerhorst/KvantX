@@ -271,6 +271,7 @@ impl App {
                 ),
             );
             self.samples[s].cells[a].manual = false;
+            self.samples[s].cells[a].reason.clear();
             self.recompute_sample(s);
             self.refit(a);
         }

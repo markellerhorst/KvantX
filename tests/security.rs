@@ -11,6 +11,7 @@ use kvantx::formats::svg;
 use kvantx::support::audit::{self, Audit};
 use kvantx::support::fmt;
 use kvantx::support::inflate;
+use kvantx::support::json;
 use kvantx::support::testkit;
 
 /// Packs `(value, number of bits)` fields into bytes, least significant bit first (as deflate does).
@@ -88,11 +89,11 @@ fn alignment_refuses_absurd_or_non_finite_retention_times() {
 fn a_container_with_wrapping_or_absurd_lengths_is_rejected() {
     let dir = tmp_dir("hostile_container");
     let path = dir.join("evil.kvantx");
-    let mut wrap = b"LCMSQNT2".to_vec();
+    let mut wrap = b"KVANTX\x00\x01".to_vec();
     wrap.extend((u64::MAX - 5).to_le_bytes()); // 16 + length wraps around in unchecked arithmetic
     std::fs::write(&path, &wrap).unwrap();
     assert!(project::read_container(&path).is_err());
-    let mut big = b"LCMSQNT2".to_vec();
+    let mut big = b"KVANTX\x00\x01".to_vec();
     big.extend((200u64 << 20).to_le_bytes());
     big.extend(vec![b'x'; 64]);
     std::fs::write(&path, &big).unwrap();
@@ -108,17 +109,50 @@ fn a_container_with_wrapping_or_absurd_lengths_is_rejected() {
 }
 
 #[test]
-fn a_project_cannot_start_thousands_of_jobs() {
-    let mut text = String::from("LCMSQUANT-PROJECT\t1\n");
-    for i in 0..2001 {
-        text += &format!("S\tfile{}.raw\t\tUnknown\t0\t0\ttrue\n", i);
-    }
-    assert!(ProjectFile::parse(&text).is_err());
-    let mut targets = String::from("LCMSQUANT-PROJECT\t1\n");
-    for i in 0..2001 {
-        targets += &format!("A\tT{}\tn/a\t100\tn/a\n", i);
-    }
-    assert!(ProjectFile::parse(&targets).is_err());
+fn a_hostile_manifest_cannot_start_thousands_of_jobs() {
+    let target = || {
+        json::object(vec![
+            ("name", json::string("T")),
+            ("rt_min", json::Value::Null),
+            (
+                "product_ions",
+                json::Value::Array(vec![json::Value::Number(100.0)]),
+            ),
+            ("precursor_mz", json::Value::Null),
+        ])
+    };
+    let manifest = |targets: usize| {
+        json::object(vec![
+            ("format", json::string("kvantx-project")),
+            ("schema", json::Value::Number(1.0)),
+            (
+                "saved_by",
+                json::object(vec![
+                    ("application", json::string("KvantX")),
+                    ("version", json::string("t")),
+                ]),
+            ),
+            ("saved_utc", json::string("")),
+            ("user", json::string("u")),
+            ("settings", json::Value::Object(vec![])),
+            (
+                "targets",
+                json::Value::Array((0..targets).map(|_| target()).collect()),
+            ),
+            ("samples", json::Value::Array(vec![])),
+            (
+                "audit",
+                json::object(vec![
+                    ("entries", json::Value::Number(0.0)),
+                    ("head", json::string("")),
+                ]),
+            ),
+        ])
+        .to_pretty_string()
+        .unwrap()
+    };
+    assert!(ProjectFile::from_json(&manifest(2000)).is_ok());
+    assert!(ProjectFile::from_json(&manifest(2001)).is_err());
 }
 
 #[test]

@@ -193,6 +193,7 @@ impl App {
                     src_path: s.src_path.clone(),
                     raw_sha: s.raw_sha.clone(),
                     source: s.source.clone(),
+                    import: s.import.clone(),
                     kind: s.kind,
                     cells: s.cells.clone(),
                     show: s.show,
@@ -217,6 +218,7 @@ impl App {
                 src_path: st.src_path,
                 raw_sha: st.raw_sha,
                 source: st.source,
+                import: st.import,
                 kind: st.kind,
                 xics: vec![],
                 cells: st.cells,
@@ -317,12 +319,12 @@ impl App {
             let a = self.anchor.min(self.samples.len() - 1);
             let (lo, hi) = (a.min(i), a.max(i));
             if !ctrl {
-                for s in self.samples.iter_mut() {
+                for s in &mut self.samples {
                     s.show = false;
                 }
             }
-            for sample in &mut self.samples[lo..=hi] {
-                sample.show = true;
+            for s in &mut self.samples[lo..=hi] {
+                s.show = true;
             }
             self.sel_s = i;
         } else if ctrl {
@@ -332,7 +334,7 @@ impl App {
                 self.sel_s = i;
             }
         } else {
-            for s in self.samples.iter_mut() {
+            for s in &mut self.samples {
                 s.show = false;
             }
             self.samples[i].show = true;

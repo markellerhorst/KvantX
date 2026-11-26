@@ -4,6 +4,7 @@
 #![allow(dead_code)]
 
 use kvantx::app::{App, LoadInfo, PeakMethod};
+use kvantx::domain::types::{ImportInfo, ImportRoute};
 use kvantx::formats::mzml;
 use kvantx::formats::project::{RawSource, SampleRec};
 use kvantx::formats::targets;
@@ -23,12 +24,12 @@ pub fn tmp_dir(name: &str) -> PathBuf {
 pub fn sample_rec(path: &str) -> SampleRec {
     SampleRec {
         path: path.into(),
-        raw_sha256: String::new(),
+        raw_sha256: "0".repeat(64),
         kind: "Unknown".into(),
-        conc: 0.0,
         rt_shift: 0.0,
         show: true,
         embedded: false,
+        import: ImportInfo::default(),
         cells: vec![],
     }
 }
@@ -56,7 +57,8 @@ pub fn info(n: usize) -> LoadInfo {
     LoadInfo {
         path: format!("synthetic{}.raw", n),
         raw_sha: "0".repeat(64),
-        detail: String::new(),
+        detail: "synthetic test run".into(),
+        route: ImportRoute::Conversion,
         source: RawSource::Disk(PathBuf::from(format!("synthetic{}.raw", n))),
     }
 }

@@ -1,8 +1,11 @@
 //! Opening, saving and clearing projects.
 
 use crate::app::state::{App, Msg, NewProjectForm, Pending, VERSION};
-use crate::formats::project::{self, BlobSource, CellRec, ProjectFile, RawSource, SampleRec};
+use crate::formats::project::{
+    self, AuditAnchor, BlobSource, CellRec, ProjectFile, RawSource, SCHEMA_VERSION, SampleRec,
+};
 use crate::formats::rawconv;
+use crate::support::audit;
 use crate::support::paths;
 use eframe::egui;
 use std::path::Path;
@@ -12,8 +15,10 @@ impl App {
     // ---------------- projects ----------------
     /// Collects everything a project stores (all of it except the raw data, which is copied separately).
     pub fn project_file(&self) -> ProjectFile {
+        let (entries, head) = self.audit.head();
         ProjectFile {
             app_version: VERSION.into(),
+            saved_utc: audit::iso_now(),
             user: self.audit.user.clone(),
             params: self.params_vec(),
             analytes: self.analytes.clone(),
@@ -24,10 +29,10 @@ impl App {
                     path: s.src_path.clone(),
                     raw_sha256: s.raw_sha.clone(),
                     kind: s.kind.label().into(),
-                    conc: 0.0,
                     rt_shift: s.rt_shift,
                     show: s.show,
                     embedded: false,
+                    import: s.import.clone(),
                     cells: s
                         .cells
                         .iter()
@@ -39,11 +44,13 @@ impl App {
                             start: c.start,
                             end: c.end,
                             include: c.include,
-                            conc: Some(c.conc),
+                            conc: c.conc,
+                            reason: c.reason.clone(),
                         })
                         .collect(),
                 })
                 .collect(),
+            audit: AuditAnchor { entries, head },
         }
     }
 
@@ -139,18 +146,28 @@ impl App {
         // The trail of the project takes over; what happened before stays in the old trail.
         self.audit
             .log("PROJECT_OPENING", &path.display().to_string());
-        self.audit
-            .open_trail(&paths::project_audit_file(path).to_string_lossy());
+        let trail = paths::project_audit_file(path);
+        self.audit.open_trail(&trail.to_string_lossy());
+        let notes = Self::check_audit_anchor(&pf, &trail);
+        let manifest_sha = pf
+            .to_json()
+            .map(|t| crate::support::sha256::sha256_hex(t.as_bytes()))
+            .unwrap_or_default();
         self.audit.log(
             "PROJECT_OPENED",
             &format!(
-                "{} text_sha256={} saved_by={} embedded_raw_files={}",
+                "{} manifest_sha256={} schema={} saved_by={} saved_utc={} embedded_raw_files={}",
                 path.display(),
-                crate::support::sha256::sha256_hex(pf.to_text().as_bytes()),
+                manifest_sha,
+                SCHEMA_VERSION,
                 pf.user,
+                pf.saved_utc,
                 offs.iter().filter(|o| o.is_some()).count()
             ),
         );
+        for note in &notes {
+            self.audit.log("PROJECT_AUDIT_CHECK", note);
+        }
         self.samples.clear();
         self.analytes = pf.analytes.clone();
         self.fits = vec![None; self.analytes.len()];
@@ -161,12 +178,14 @@ impl App {
         self.rows_dirty = true;
         self.project_path = Some(path.to_path_buf());
         if pf.samples.is_empty() {
-            self.status = format!("Opened project {}", path.display());
+            let warnings: String = notes.iter().map(|n| format!("  ⚠ {n}")).collect();
+            self.status = format!("Opened project {}{}", path.display(), warnings);
             return;
         }
         self.pending = Some(Pending {
             recs: pf.samples.clone(),
             mismatches: vec![],
+            notes,
         });
         let mut started = 0;
         for (rec, off) in pf.samples.iter().zip(offs.iter()) {
@@ -214,6 +233,9 @@ impl App {
         }
         if n < recs.len() {
             msg += "  ⚠ some files could not be re-imported (moved or converter missing)";
+        }
+        for note in &p.notes {
+            msg += &format!("  ⚠ {note}");
         }
         self.status = msg;
     }
@@ -318,5 +340,36 @@ impl App {
         } else {
             self.new_project();
         }
+    }
+
+    /// Compares the audit trail next to a project with the anchor recorded in the project.
+    ///
+    /// Returns a message for every problem: the trail is missing, its hash chain is broken, it has
+    /// fewer entries than when the project was saved, or the entry at that position differs. A local
+    /// hash chain detects accidental damage and simple edits; it is not a signature.
+    pub fn check_audit_anchor(pf: &ProjectFile, trail: &Path) -> Vec<String> {
+        let mut notes = Vec::new();
+        if pf.audit.entries == 0 {
+            return notes;
+        }
+        let trail_text = trail.to_string_lossy().to_string();
+        match audit::verify(&trail_text) {
+            Err(e) => notes.push(format!("audit trail problem: {e}")),
+            Ok(n) if (n as u64) < pf.audit.entries => {
+                notes.push(
+                    "the audit trail has fewer entries than when the project was saved".into(),
+                );
+            }
+            Ok(_) => {
+                if audit::hash_at(&trail_text, pf.audit.entries as usize).as_deref()
+                    != Some(pf.audit.head.as_str())
+                {
+                    notes.push(
+                        "the audit trail does not match the state recorded in the project".into(),
+                    );
+                }
+            }
+        }
+        notes
     }
 }

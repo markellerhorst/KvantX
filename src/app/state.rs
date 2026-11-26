@@ -3,7 +3,7 @@
 use crate::analysis::calibration::Fit;
 use crate::app::layout::Layout;
 use crate::domain::settings::AnalysisSettings;
-use crate::domain::types::{Boundary, Kind, PeakMethod, Theme};
+use crate::domain::types::{Boundary, ImportInfo, ImportRoute, Kind, PeakMethod, Theme};
 use crate::domain::{Analyte, MzData};
 use crate::formats::project::{EmbeddedBlobs, RawSource, SampleRec};
 use crate::support::audit::Audit;
@@ -71,8 +71,10 @@ pub struct LoadInfo {
     pub path: String,
     /// SHA-256 of the raw file.
     pub raw_sha: String,
-    /// Description of the conversion, for the audit trail.
+    /// Description of the import, for the audit trail and the project.
     pub detail: String,
+    /// Whether the file was read directly or converted.
+    pub route: ImportRoute,
     /// Where the raw bytes can be found again when the project is saved.
     pub source: RawSource,
 }
@@ -173,6 +175,8 @@ pub struct Cell {
     pub include: bool,
     /// Standard concentration of this target in this file; 0 if the file is no standard for it.
     pub conc: f64,
+    /// Reason given for the last manual change of the boundaries (empty if none).
+    pub reason: String,
 }
 
 impl Cell {
@@ -187,6 +191,7 @@ impl Cell {
             logged: (0.0, 0.0),
             include: true,
             conc: 0.0,
+            reason: String::new(),
         }
     }
 }
@@ -207,6 +212,8 @@ pub struct Sample {
     pub raw_sha: String,
     /// Where the raw bytes can be found again.
     pub source: RawSource,
+    /// How the file was imported.
+    pub import: ImportInfo,
     /// Role of the file.
     pub kind: Kind,
     /// Extracted chromatograms: target, then trace, then points `[time, intensity]`.
@@ -228,6 +235,7 @@ pub(crate) struct SampleState {
     pub(crate) src_path: String,
     pub(crate) raw_sha: String,
     pub(crate) source: RawSource,
+    pub(crate) import: ImportInfo,
     pub(crate) kind: Kind,
     pub(crate) cells: Vec<Cell>,
     pub(crate) show: bool,
@@ -253,6 +261,7 @@ pub(crate) struct Snapshot {
 pub(crate) struct Pending {
     pub(crate) recs: Vec<SampleRec>,
     pub(crate) mismatches: Vec<String>,
+    pub(crate) notes: Vec<String>,
 }
 
 /// Application state and user interface of KvantX.

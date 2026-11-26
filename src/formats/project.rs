@@ -1,219 +1,474 @@
-//! .kvantx project file: plain tab-separated text. Raw data is NOT stored (it is re-imported from the
-//! recorded paths and verified by SHA-256); only targets, parameters and per-file analysis state are.
+//! The `.kvantx` project file (schema 1, described in `docs/PROJECT_FORMAT.md`).
+//!
+//! A project is one container file: `[8 bytes magic][u64 length of the manifest][manifest][for every
+//! embedded sample: u64 length + the original bytes]`. The manifest is UTF-8 JSON with an explicit
+//! schema version. It holds the targets, the analysis settings, the input files (path, SHA-256 and the
+//! import route), the integration state of every target in every file (including the reason of a manual
+//! change) and an anchor to the audit trail. The raw data are only copied into the container when the
+//! user chooses so; otherwise they are re-imported from the recorded paths and verified by SHA-256.
+//!
+//! Everything read from a project is untrusted: sizes are limited, lengths use checked arithmetic and
+//! the manifest is validated field by field. A project written by a newer schema is refused, not guessed.
+
 use crate::domain::Analyte;
+use crate::domain::types::{ImportInfo, ImportRoute, Kind};
+use crate::support::json::{self, Value};
 use crate::support::sha256::Sha256;
 use std::io::{BufWriter, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 
+/// Value of the `format` field of every manifest.
+pub const FORMAT_NAME: &str = "kvantx-project";
+
+/// Schema version this program writes and reads.
+pub const SCHEMA_VERSION: u64 = 1;
+
+/// Largest manifest that is read (64 MiB); real projects need a few kilobytes.
+const MAX_TEXT_BYTES: u64 = 64 << 20;
+
+/// Largest number of files, of targets and of cells per file a project may list. A project is not
+/// trusted: every file starts a background job and every target allocates memory.
+const MAX_ENTRIES: usize = 2000;
+
+/// Largest number of product ions of one target.
+const MAX_IONS: usize = 64;
+
+/// Largest number of settings in a manifest.
+const MAX_SETTINGS: usize = 256;
+
+/// Longest name of a target, in characters.
+const MAX_NAME: usize = 256;
+
+/// Longest file path, in characters.
+const MAX_PATH: usize = 4096;
+
+/// Longest free text (import detail, manual reason), in characters.
+const MAX_DETAIL: usize = 8192;
+
+/// Largest retention-time shift of a file, in minutes.
+const MAX_SHIFT: f64 = 120.0;
+
+/// First bytes of every project: `KVANTX`, a zero byte and the version of the container layout.
+const MAGIC: &[u8; 8] = b"KVANTX\x00\x01";
+
 /// Stored state of one target in one file.
 #[derive(Clone, Debug, PartialEq)]
 pub struct CellRec {
+    /// Index of the target in the target list.
     pub analyte: usize,
+    /// Whether a peak was found or defined.
     pub found: bool,
+    /// Whether the boundaries were set by hand.
     pub manual: bool,
+    /// Start of the integration window in minutes.
     pub start: f64,
+    /// End of the integration window in minutes.
     pub end: f64,
+    /// Whether the file is used as a calibration point for this target.
     pub include: bool,
-    /// standard concentration of this target in this file (0 = not a standard); None in projects written by older versions.
-    pub conc: Option<f64>,
+    /// Standard concentration of this target in this file (0 = not a standard).
+    pub conc: f64,
+    /// Reason given for the last manual change of the boundaries (empty if none).
+    pub reason: String,
 }
 
 /// Stored state of one file.
 #[derive(Clone, Debug, PartialEq)]
 pub struct SampleRec {
+    /// Path of the input file as it was imported.
     pub path: String,
+    /// SHA-256 of the input file (64 lowercase hexadecimal digits).
     pub raw_sha256: String,
+    /// Role of the file: one of the labels of [`Kind`].
     pub kind: String,
-    pub conc: f64,
+    /// Retention-time shift in minutes.
     pub rt_shift: f64,
+    /// Whether the file was selected.
     pub show: bool,
-    /// the original .raw file is stored inside the project file.
+    /// Whether the original file is stored inside the project.
     pub embedded: bool,
+    /// How the file was imported.
+    pub import: ImportInfo,
+    /// Integration state of the targets.
     pub cells: Vec<CellRec>,
 }
 
-/// Everything a project stores except the raw data: targets, parameters and per-file state.
-#[derive(Clone, Debug, PartialEq, Default)]
-pub struct ProjectFile {
-    pub app_version: String,
-    pub user: String,
-    pub params: Vec<(String, String)>,
-    pub analytes: Vec<Analyte>,
-    pub samples: Vec<SampleRec>,
+/// The state of the audit trail when the project was saved.
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
+pub struct AuditAnchor {
+    /// Number of entries in the trail.
+    pub entries: u64,
+    /// Hash of the last entry (`GENESIS` for an empty trail).
+    pub head: String,
 }
 
-/// First line of the text part of a project.
-const MAGIC: &str = "LCMSQUANT-PROJECT";
+/// Everything a project stores except the raw data.
+#[derive(Clone, Debug, PartialEq, Default)]
+pub struct ProjectFile {
+    /// Version of the program that wrote the project.
+    pub app_version: String,
+    /// Time of saving, ISO 8601 in UTC.
+    pub saved_utc: String,
+    /// User name at the time of saving.
+    pub user: String,
+    /// Analysis settings as `key`/`value` pairs.
+    pub params: Vec<(String, String)>,
+    /// The targets.
+    pub analytes: Vec<Analyte>,
+    /// The input files.
+    pub samples: Vec<SampleRec>,
+    /// Anchor to the audit trail.
+    pub audit: AuditAnchor,
+}
 
-/// Replaces tabs and line breaks, which separate fields and records, by spaces.
-fn clean(s: &str) -> String {
-    s.replace(['\t', '\n', '\r'], " ")
+/// A setting as JSON: `true`/`false` and numbers whose text is reproduced exactly become typed values.
+fn setting_to_value(text: &str) -> Value {
+    match text {
+        "true" => return Value::Bool(true),
+        "false" => return Value::Bool(false),
+        _ => {}
+    }
+    match text.parse::<f64>() {
+        Ok(n) if n.is_finite() && n.to_string() == text => Value::Number(n),
+        _ => Value::String(text.to_string()),
+    }
+}
+
+/// The text form of a setting read from JSON.
+fn value_to_setting(value: &Value) -> Option<String> {
+    match value {
+        Value::Bool(b) => Some(b.to_string()),
+        Value::Number(n) => Some(n.to_string()),
+        Value::String(s) => Some(s.clone()),
+        _ => None,
+    }
+}
+
+/// The member `key` of the object `v`, or an error that names the place.
+fn field<'a>(v: &'a Value, key: &str, ctx: &str) -> Result<&'a Value, String> {
+    v.get(key)
+        .ok_or_else(|| format!("{ctx}: \"{key}\" is missing"))
+}
+
+fn text_of(v: &Value, key: &str, ctx: &str, max: usize) -> Result<String, String> {
+    let s = field(v, key, ctx)?
+        .as_str()
+        .ok_or_else(|| format!("{ctx}: \"{key}\" must be text"))?;
+    if s.chars().count() > max {
+        return Err(format!("{ctx}: \"{key}\" is longer than {max} characters"));
+    }
+    Ok(s.to_string())
+}
+
+fn number(v: &Value, key: &str, ctx: &str) -> Result<f64, String> {
+    field(v, key, ctx)?
+        .as_f64()
+        .ok_or_else(|| format!("{ctx}: \"{key}\" must be a number"))
+}
+
+fn flag(v: &Value, key: &str, ctx: &str) -> Result<bool, String> {
+    field(v, key, ctx)?
+        .as_bool()
+        .ok_or_else(|| format!("{ctx}: \"{key}\" must be true or false"))
+}
+
+fn optional_number(v: &Value, key: &str, ctx: &str) -> Result<Option<f64>, String> {
+    match field(v, key, ctx)? {
+        Value::Null => Ok(None),
+        Value::Number(n) => Ok(Some(*n)),
+        _ => Err(format!("{ctx}: \"{key}\" must be a number or null")),
+    }
+}
+
+fn list<'a>(v: &'a Value, key: &str, ctx: &str, max: usize) -> Result<&'a [Value], String> {
+    let items = field(v, key, ctx)?
+        .as_array()
+        .ok_or_else(|| format!("{ctx}: \"{key}\" must be a list"))?;
+    if items.len() > max {
+        return Err(format!("{ctx}: \"{key}\" has more than {max} entries"));
+    }
+    Ok(items)
+}
+
+fn is_sha256(s: &str) -> bool {
+    s.len() == 64
+        && s.bytes()
+            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
 }
 
 impl ProjectFile {
-    /// Serializes the project as tab-separated text.
-    #[must_use]
-    pub fn to_text(&self) -> String {
-        let mut o = format!("{}\t1\n", MAGIC);
-        o += &format!("V\t{}\t{}\n", clean(&self.app_version), clean(&self.user));
-        for (k, v) in &self.params {
-            o += &format!("P\t{}\t{}\n", clean(k), clean(v));
-        }
-        for a in &self.analytes {
-            let rt = a.rt.map(|v| v.to_string()).unwrap_or_else(|| "n/a".into());
-            let ions = a
-                .ions
-                .iter()
-                .map(|v| v.to_string())
-                .collect::<Vec<_>>()
-                .join(";");
-            let prec = a
-                .precursor
-                .map(|v| v.to_string())
-                .unwrap_or_else(|| "n/a".into());
-            o += &format!("A\t{}\t{}\t{}\t{}\n", clean(&a.name), rt, ions, prec);
-        }
-        for s in &self.samples {
-            o += &format!(
-                "S\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
-                clean(&s.path),
-                s.raw_sha256,
-                clean(&s.kind),
-                s.conc,
-                s.rt_shift,
-                s.show,
-                s.embedded
-            );
-            for c in &s.cells {
-                o += &format!(
-                    "C\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
-                    c.analyte,
-                    c.found,
-                    c.manual,
-                    c.start,
-                    c.end,
-                    c.include,
-                    c.conc.map(|v| v.to_string()).unwrap_or_else(|| "-".into())
-                );
-            }
-        }
-        o
+    /// The manifest as a JSON value.
+    fn to_value(&self) -> Value {
+        let n = Value::Number;
+        let targets = self.analytes.iter().map(|a| {
+            json::object(vec![
+                ("name", json::string(&a.name)),
+                ("rt_min", json::optional_number(a.rt)),
+                (
+                    "product_ions",
+                    Value::Array(a.ions.iter().map(|&m| n(m)).collect()),
+                ),
+                ("precursor_mz", json::optional_number(a.precursor)),
+            ])
+        });
+        let samples = self.samples.iter().map(|s| {
+            let cells = s.cells.iter().map(|c| {
+                json::object(vec![
+                    ("target", n(c.analyte as f64)),
+                    ("peak_found", Value::Bool(c.found)),
+                    ("manual", Value::Bool(c.manual)),
+                    ("start_min", n(c.start)),
+                    ("end_min", n(c.end)),
+                    ("use_for_calibration", Value::Bool(c.include)),
+                    ("standard_conc", n(c.conc)),
+                    ("manual_reason", json::string(&c.reason)),
+                ])
+            });
+            json::object(vec![
+                ("path", json::string(&s.path)),
+                ("raw_sha256", json::string(&s.raw_sha256)),
+                ("kind", json::string(&s.kind)),
+                ("rt_shift_min", n(s.rt_shift)),
+                ("selected", Value::Bool(s.show)),
+                ("embedded", Value::Bool(s.embedded)),
+                (
+                    "import",
+                    json::object(vec![
+                        ("route", json::string(s.import.route.key())),
+                        ("detail", json::string(&s.import.detail)),
+                    ]),
+                ),
+                ("cells", Value::Array(cells.collect())),
+            ])
+        });
+        json::object(vec![
+            ("format", json::string(FORMAT_NAME)),
+            ("schema", n(SCHEMA_VERSION as f64)),
+            (
+                "saved_by",
+                json::object(vec![
+                    ("application", json::string("KvantX")),
+                    ("version", json::string(&self.app_version)),
+                ]),
+            ),
+            ("saved_utc", json::string(&self.saved_utc)),
+            ("user", json::string(&self.user)),
+            (
+                "settings",
+                Value::Object(
+                    self.params
+                        .iter()
+                        .map(|(k, v)| (k.clone(), setting_to_value(v)))
+                        .collect(),
+                ),
+            ),
+            ("targets", Value::Array(targets.collect())),
+            ("samples", Value::Array(samples.collect())),
+            (
+                "audit",
+                json::object(vec![
+                    ("entries", n(self.audit.entries as f64)),
+                    ("head", json::string(&self.audit.head)),
+                ]),
+            ),
+        ])
     }
 
-    /// Parses the text written by [`ProjectFile::to_text`].
-    ///
-    /// Unknown record types are ignored so that newer files can be read by older versions.
+    /// The manifest as JSON text. The text is read back and validated before it is returned, so that a
+    /// project that could not be opened again is never written.
     ///
     /// # Errors
     ///
-    /// Returns a message with the line number if the text is not a project or a field is invalid.
-    pub fn parse(text: &str) -> Result<ProjectFile, String> {
-        let mut lines = text.lines();
-        let first = lines.next().unwrap_or("");
-        if !first.starts_with(MAGIC) {
-            return Err("not an KvantX project file".into());
-        }
-        let mut p = ProjectFile::default();
-        for (n, l) in lines.enumerate() {
-            let f: Vec<&str> = l.split('\t').collect();
-            let err = |m: &str| format!("line {}: {}", n + 2, m);
-            match f[0] {
-                "V" if f.len() >= 3 => {
-                    p.app_version = f[1].into();
-                    p.user = f[2].into();
-                }
-                "P" if f.len() >= 3 => p.params.push((f[1].into(), f[2].into())),
-                "A" if f.len() >= 4 => {
-                    if p.analytes.len() >= MAX_ENTRIES {
-                        return Err(err("too many targets"));
-                    }
-                    let rt = if f[2] == "n/a" {
-                        None
-                    } else {
-                        Some(f[2].parse().map_err(|_| err("bad RT"))?)
-                    };
-                    let ions: Result<Vec<f64>, _> = f[3]
-                        .split(';')
-                        .filter(|s| !s.is_empty())
-                        .map(|s| s.parse::<f64>())
-                        .collect();
-                    let ions = ions.map_err(|_| err("bad ion"))?;
-                    if ions.is_empty() {
-                        return Err(err("target without ions"));
-                    }
-                    let precursor = match f.get(4) {
-                        Some(s) if *s != "n/a" && !s.is_empty() => {
-                            Some(s.parse().map_err(|_| err("bad precursor"))?)
-                        }
-                        _ => None,
-                    };
-                    p.analytes.push(Analyte {
-                        name: f[1].into(),
-                        rt,
-                        ions,
-                        precursor,
-                    });
-                }
-                "S" if f.len() >= 7 && p.samples.len() >= MAX_ENTRIES => {
-                    return Err(err("too many files"));
-                }
-                "S" if f.len() >= 7 => p.samples.push(SampleRec {
-                    path: f[1].into(),
-                    raw_sha256: f[2].into(),
-                    kind: f[3].into(),
-                    conc: f[4].parse().map_err(|_| err("bad conc"))?,
-                    rt_shift: f[5].parse().map_err(|_| err("bad shift"))?,
-                    show: f[6] == "true",
-                    embedded: f.get(7) == Some(&"true"),
-                    cells: vec![],
-                }),
-                "C" if f.len() >= 7 => {
-                    let s = p
-                        .samples
-                        .last_mut()
-                        .ok_or_else(|| err("cell before sample"))?;
-                    if s.cells.len() >= MAX_ENTRIES {
-                        return Err(err("too many cells"));
-                    }
-                    s.cells.push(CellRec {
-                        analyte: f[1].parse().map_err(|_| err("bad analyte index"))?,
-                        found: f[2] == "true",
-                        manual: f[3] == "true",
-                        start: f[4].parse().map_err(|_| err("bad start"))?,
-                        end: f[5].parse().map_err(|_| err("bad end"))?,
-                        include: f[6] == "true",
-                        conc: f.get(7).and_then(|s| s.parse().ok()),
-                    });
-                }
-                _ => {} // unknown / empty lines are ignored (forward compatible)
-            }
-        }
-        Ok(p)
+    /// Returns a message if a value is not finite or the project would not pass validation.
+    pub fn to_json(&self) -> Result<String, String> {
+        let text = self.to_value().to_pretty_string()?;
+        ProjectFile::from_json(&text)
+            .map_err(|e| format!("refusing to write an invalid project: {e}"))?;
+        Ok(text)
     }
 
-    /// Value of the analysis parameter `key`, if the project stores it.
-    #[must_use]
-    pub fn param(&self, key: &str) -> Option<&str> {
-        self.params
+    /// Reads and validates a manifest.
+    ///
+    /// # Errors
+    ///
+    /// Returns a message for malformed JSON, a wrong format name, a schema that this program does not
+    /// read, a missing or mistyped field, a value outside its range or a limit that is exceeded.
+    pub fn from_json(text: &str) -> Result<ProjectFile, String> {
+        let root = json::parse(text)?;
+        if root.as_object().is_none() {
+            return Err("the project manifest is not a JSON object".into());
+        }
+        match root.get("format").and_then(Value::as_str) {
+            Some(FORMAT_NAME) => {}
+            Some(other) => return Err(format!("not a KvantX project (format \"{other}\")")),
+            None => return Err("not a KvantX project (\"format\" is missing)".into()),
+        }
+        let schema = root
+            .get("schema")
+            .and_then(Value::as_u64)
+            .ok_or("\"schema\" is missing or not an integer")?;
+        if schema > SCHEMA_VERSION {
+            return Err(format!(
+                "this project uses schema {schema}, written by a newer KvantX; this version reads schema {SCHEMA_VERSION}"
+            ));
+        }
+        if schema < 1 {
+            return Err("invalid schema version 0".into());
+        }
+        let saved_by = field(&root, "saved_by", "manifest")?;
+        let mut pf = ProjectFile {
+            app_version: text_of(saved_by, "version", "saved_by", 64)?,
+            saved_utc: text_of(&root, "saved_utc", "manifest", 40)?,
+            user: text_of(&root, "user", "manifest", MAX_NAME)?,
+            ..Default::default()
+        };
+        let settings = field(&root, "settings", "manifest")?
+            .as_object()
+            .ok_or("\"settings\" must be an object")?;
+        if settings.len() > MAX_SETTINGS {
+            return Err(format!("more than {MAX_SETTINGS} settings"));
+        }
+        for (key, value) in settings {
+            if key.is_empty() || key.chars().count() > 64 {
+                return Err("a setting has an empty or too long name".into());
+            }
+            let value = value_to_setting(value)
+                .ok_or_else(|| format!("setting \"{key}\" must be text, a number or true/false"))?;
+            if value.chars().count() > MAX_NAME {
+                return Err(format!("setting \"{key}\" is too long"));
+            }
+            pf.params.push((key.clone(), value));
+        }
+        for (i, t) in list(&root, "targets", "manifest", MAX_ENTRIES)?
             .iter()
-            .find(|(k, _)| k == key)
-            .map(|(_, v)| v.as_str())
+            .enumerate()
+        {
+            let ctx = format!("target {}", i + 1);
+            let name = text_of(t, "name", &ctx, MAX_NAME)?;
+            if name.trim().is_empty() {
+                return Err(format!("{ctx}: the name is empty"));
+            }
+            let rt = optional_number(t, "rt_min", &ctx)?;
+            if rt.is_some_and(|r| r < 0.0) {
+                return Err(format!("{ctx}: the retention time is negative"));
+            }
+            let precursor = optional_number(t, "precursor_mz", &ctx)?;
+            if precursor.is_some_and(|m| m <= 0.0) {
+                return Err(format!("{ctx}: the precursor m/z must be positive"));
+            }
+            let ions: Vec<f64> = list(t, "product_ions", &ctx, MAX_IONS)?
+                .iter()
+                .map(|v| {
+                    v.as_f64()
+                        .filter(|m| *m > 0.0)
+                        .ok_or_else(|| format!("{ctx}: product ions must be positive numbers"))
+                })
+                .collect::<Result<_, _>>()?;
+            if ions.is_empty() {
+                return Err(format!("{ctx}: no product ion"));
+            }
+            pf.analytes.push(Analyte {
+                name,
+                rt,
+                ions,
+                precursor,
+            });
+        }
+        for (i, s) in list(&root, "samples", "manifest", MAX_ENTRIES)?
+            .iter()
+            .enumerate()
+        {
+            let ctx = format!("file {}", i + 1);
+            let path = text_of(s, "path", &ctx, MAX_PATH)?;
+            if path.is_empty() {
+                return Err(format!("{ctx}: the path is empty"));
+            }
+            if pf.samples.iter().any(|x| x.path == path) {
+                return Err(format!("{ctx}: the path {path} is listed twice"));
+            }
+            let raw_sha256 = text_of(s, "raw_sha256", &ctx, 64)?;
+            if !is_sha256(&raw_sha256) {
+                return Err(format!(
+                    "{ctx}: \"raw_sha256\" must be 64 lowercase hexadecimal digits"
+                ));
+            }
+            let kind = text_of(s, "kind", &ctx, 16)?;
+            if !Kind::ALL.iter().any(|k| k.label() == kind) {
+                return Err(format!("{ctx}: unknown type \"{kind}\""));
+            }
+            let rt_shift = number(s, "rt_shift_min", &ctx)?;
+            if rt_shift.abs() > MAX_SHIFT {
+                return Err(format!(
+                    "{ctx}: the retention-time shift is outside +-{MAX_SHIFT} min"
+                ));
+            }
+            let import_obj = field(s, "import", &ctx)?;
+            let route_key = text_of(import_obj, "route", &ctx, 32)?;
+            let route = ImportRoute::from_key(&route_key)
+                .ok_or_else(|| format!("{ctx}: unknown import route \"{route_key}\""))?;
+            let import = ImportInfo {
+                route,
+                detail: text_of(import_obj, "detail", &ctx, MAX_DETAIL)?,
+            };
+            let mut cells: Vec<CellRec> = Vec::new();
+            for (k, c) in list(s, "cells", &ctx, MAX_ENTRIES)?.iter().enumerate() {
+                let cctx = format!("{ctx}, cell {}", k + 1);
+                let target = field(c, "target", &cctx)?
+                    .as_u64()
+                    .ok_or_else(|| format!("{cctx}: \"target\" must be an index"))?
+                    as usize;
+                if target >= pf.analytes.len() {
+                    return Err(format!("{cctx}: target {target} does not exist"));
+                }
+                if cells.iter().any(|x| x.analyte == target) {
+                    return Err(format!("{cctx}: target {target} appears twice"));
+                }
+                let (found, start, end) = (
+                    flag(c, "peak_found", &cctx)?,
+                    number(c, "start_min", &cctx)?,
+                    number(c, "end_min", &cctx)?,
+                );
+                if found && start > end {
+                    return Err(format!("{cctx}: the integration window is reversed"));
+                }
+                let conc = number(c, "standard_conc", &cctx)?;
+                if conc < 0.0 {
+                    return Err(format!("{cctx}: the standard concentration is negative"));
+                }
+                cells.push(CellRec {
+                    analyte: target,
+                    found,
+                    manual: flag(c, "manual", &cctx)?,
+                    start,
+                    end,
+                    include: flag(c, "use_for_calibration", &cctx)?,
+                    conc,
+                    reason: text_of(c, "manual_reason", &cctx, MAX_DETAIL)?,
+                });
+            }
+            pf.samples.push(SampleRec {
+                path,
+                raw_sha256,
+                kind,
+                rt_shift,
+                show: flag(s, "selected", &ctx)?,
+                embedded: flag(s, "embedded", &ctx)?,
+                import,
+                cells,
+            });
+        }
+        let audit = field(&root, "audit", "manifest")?;
+        let head = text_of(audit, "head", "audit", 64)?;
+        if !head.bytes().all(|b| b.is_ascii_alphanumeric()) {
+            return Err("audit: \"head\" has invalid characters".into());
+        }
+        let entries = field(audit, "entries", "audit")?
+            .as_u64()
+            .ok_or("audit: \"entries\" must be a non-negative integer")?;
+        pf.audit = AuditAnchor { entries, head };
+        Ok(pf)
     }
 }
-
-// ---------------------------------------------------------------------------------------------
-// Project container: [8 bytes "LCMSQNT2"][u64 text length][project text][for every embedded sample: u64 length + raw bytes]
-// Older text-only projects (no embedded data) are still readable.
-// ---------------------------------------------------------------------------------------------
-/// Largest text part of a project that is read (64 MiB); real projects need a few kilobytes.
-const MAX_TEXT_BYTES: u64 = 64 << 20;
-
-/// Largest number of files, and of targets, a project may list. A project file is not trusted:
-/// every file starts a background job and every target allocates memory.
-const MAX_ENTRIES: usize = 2000;
-
-/// First bytes of a project file that contains embedded raw files.
-const MAGIC2: &[u8; 8] = b"LCMSQNT2";
 
 /// Where the original .raw bytes of a loaded file can be found again (for saving into a project).
 #[derive(Clone, Debug, PartialEq)]
@@ -267,6 +522,10 @@ pub type EmbeddedBlobs = Vec<Option<(u64, u64)>>;
 
 /// Writes the project (streaming, large raw files never need to fit in memory). Returns (data offset, length) of each embedded blob.
 /// The data is first written to a file in `tmp_dir` and moved to `path` at the end, so a source inside the same project file stays readable until then.
+///
+/// # Errors
+///
+/// Returns a message if the manifest is invalid, a source cannot be read or the file cannot be written.
 pub fn write_container(
     path: &Path,
     pf: &ProjectFile,
@@ -280,7 +539,7 @@ pub fn write_container(
     for (s, b) in pf2.samples.iter_mut().zip(blobs.iter()) {
         s.embedded = b.is_some();
     }
-    let text = pf2.to_text();
+    let manifest = pf2.to_json()?;
     io(
         std::fs::create_dir_all(tmp_dir),
         &tmp_dir.display().to_string(),
@@ -305,10 +564,13 @@ pub fn write_container(
         .open(&tmp);
     let mut out = BufWriter::new(io(tmp_file, &tmp.display().to_string())?);
     let _cleanup = RemoveOnDrop(tmp.clone());
-    io(out.write_all(MAGIC2), "writing")?;
-    io(out.write_all(&(text.len() as u64).to_le_bytes()), "writing")?;
-    io(out.write_all(text.as_bytes()), "writing")?;
-    let mut pos = 16 + text.len() as u64;
+    io(out.write_all(MAGIC), "writing")?;
+    io(
+        out.write_all(&(manifest.len() as u64).to_le_bytes()),
+        "writing",
+    )?;
+    io(out.write_all(manifest.as_bytes()), "writing")?;
+    let mut pos = 16 + manifest.len() as u64;
     let mut offs: EmbeddedBlobs = vec![None; blobs.len()];
     for (i, b) in blobs.iter().enumerate() {
         let Some(src) = b else { continue };
@@ -355,63 +617,73 @@ fn move_file(from: &Path, to: &Path) -> Result<(), String> {
     Ok(())
 }
 
-/// Reads the project text and locates the embedded blobs (without loading them).
+/// Reads and validates the manifest and locates the embedded blobs (without loading them).
+///
+/// # Errors
+///
+/// Returns a message if the file is not a KvantX project, uses a container layout or schema this
+/// program does not read, is truncated or corrupt, or its manifest is invalid.
 pub fn read_container(path: &Path) -> Result<(ProjectFile, EmbeddedBlobs), String> {
     let mut f = io(std::fs::File::open(path), &path.display().to_string())?;
     let file_len = io(f.metadata(), "metadata")?.len();
     let mut head = [0u8; 8];
-    let n = io(f.read(&mut head), "reading")?;
-    if n == 8 && &head == MAGIC2 {
-        let mut l = [0u8; 8];
-        io(f.read_exact(&mut l), "reading")?;
-        let tl = u64::from_le_bytes(l);
-        // The lengths come from the file itself: use checked arithmetic and refuse absurd values.
-        let text_end = tl
-            .checked_add(16)
-            .filter(|&e| e <= file_len && tl <= MAX_TEXT_BYTES)
-            .ok_or("project file is truncated or corrupt")?;
-        let mut tb = vec![0u8; tl as usize];
-        io(f.read_exact(&mut tb), "reading")?;
-        let pf = ProjectFile::parse(&String::from_utf8_lossy(&tb))?;
-        let mut pos = text_end;
-        let mut offs = Vec::with_capacity(pf.samples.len());
-        for s in &pf.samples {
-            if !s.embedded {
-                offs.push(None);
-                continue;
-            }
-            let data_start = pos
-                .checked_add(8)
-                .filter(|&e| e <= file_len)
-                .ok_or("project file is truncated")?;
-            io(f.seek(SeekFrom::Start(pos)), "seek")?;
-            let mut lb = [0u8; 8];
-            io(f.read_exact(&mut lb), "reading")?;
-            let len = u64::from_le_bytes(lb);
-            let data_end = data_start
-                .checked_add(len)
-                .filter(|&e| e <= file_len)
-                .ok_or_else(|| {
-                    format!(
-                        "project file is truncated inside the embedded file {}",
-                        s.path
-                    )
-                })?;
-            offs.push(Some((data_start, len)));
-            pos = data_end;
-        }
-        Ok((pf, offs))
-    } else {
-        if file_len > MAX_TEXT_BYTES {
-            return Err("project file is too large for a text-only project".into());
-        }
-        io(f.seek(SeekFrom::Start(0)), "seek")?;
-        let mut t = String::new();
-        io(f.read_to_string(&mut t), "reading")?;
-        let pf = ProjectFile::parse(&t)?;
-        let n = pf.samples.len();
-        Ok((pf, vec![None; n]))
+    f.read_exact(&mut head)
+        .map_err(|_| "not a KvantX project file (too short)".to_string())?;
+    if &head[..6] != b"KVANTX" {
+        return Err("not a KvantX project file".into());
     }
+    if head != *MAGIC {
+        return Err(format!(
+            "unsupported project container layout {}.{} (this KvantX reads 0.1)",
+            head[6], head[7]
+        ));
+    }
+    let mut l = [0u8; 8];
+    io(f.read_exact(&mut l), "reading")?;
+    let tl = u64::from_le_bytes(l);
+    // The lengths come from the file itself: use checked arithmetic and refuse absurd values.
+    let text_end = tl
+        .checked_add(16)
+        .filter(|&e| e <= file_len && tl <= MAX_TEXT_BYTES)
+        .ok_or("project file is truncated or corrupt")?;
+    let mut tb = vec![0u8; tl as usize];
+    io(f.read_exact(&mut tb), "reading")?;
+    let manifest =
+        String::from_utf8(tb).map_err(|_| "the project manifest is not valid UTF-8".to_string())?;
+    let pf = ProjectFile::from_json(&manifest)?;
+    let mut pos = text_end;
+    let mut offs = Vec::with_capacity(pf.samples.len());
+    for s in &pf.samples {
+        if !s.embedded {
+            offs.push(None);
+            continue;
+        }
+        let data_start = pos
+            .checked_add(8)
+            .filter(|&e| e <= file_len)
+            .ok_or("project file is truncated")?;
+        io(f.seek(SeekFrom::Start(pos)), "seek")?;
+        let mut lb = [0u8; 8];
+        io(f.read_exact(&mut lb), "reading")?;
+        let len = u64::from_le_bytes(lb);
+        let data_end = data_start
+            .checked_add(len)
+            .filter(|&e| e <= file_len)
+            .ok_or_else(|| {
+                format!(
+                    "project file is truncated inside the embedded file {}",
+                    s.path
+                )
+            })?;
+        offs.push(Some((data_start, len)));
+        pos = data_end;
+    }
+    if pos != file_len {
+        return Err(
+            "unexpected data after the last embedded file: the project file is corrupt".into(),
+        );
+    }
+    Ok((pf, offs))
 }
 
 /// Copies an embedded blob to `dest` (streaming) and returns its SHA-256.

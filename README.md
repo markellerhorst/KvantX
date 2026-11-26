@@ -24,7 +24,7 @@ or **concentrations from standard curves** measured in the same project. Integra
 - Quantify on the **MS2 product-ion area** or the **MS1 precursor area**; ion-ratio checks; retention-time alignment
 - Dockable panels (files, chromatogram, compound information, MS2 spectrum), light / dark / system theme, savable window layouts, zoom with Ctrl +/-/0
 - Hover read-out, zoom box, panning, quick extracted-ion chromatogram for any m/z; export of figures (PNG, SVG) and data (CSV)
-- Undo / redo, `.kvantx` projects that can embed the raw files, settings stored per session and per project
+- Undo / redo, versioned `.kvantx` projects (see `docs/PROJECT_FORMAT.md`) that record input hashes, settings, manual changes with reasons and an audit anchor, and can embed the raw files
 
 ## Build
 Requirements: [Rust](https://rustup.rs) 1.85 or newer (edition 2024). On Windows the *Visual Studio Build Tools* ("Desktop development with C++"); on macOS the Xcode command-line tools.
@@ -106,7 +106,7 @@ Flags: *ND* (no peak), *outside cal range*, *PEAK IN BLANK*, *accuracy > 15 %* o
 
 ## Development principles
 - **Follow the [Google Rust Style Guide](https://google.github.io/styleguide/rustguide.html)**: documented items, module-qualified calls, no glob imports; `cargo fmt` (100 columns) before every commit.
-- **Avoid external libraries** and prefer a clean, tested re-implementation: SHA-256, zlib, base64, PNG/SVG writers, the mzML reader, the regression and the peak finders are part of this repository.
+- **Avoid external libraries** and prefer a clean, tested re-implementation: SHA-256, zlib, base64, PNG/SVG writers, the mzML reader, the JSON reader and writer of the project format, the regression and the peak finders are part of this repository.
   Only the GUI (`eframe`/`egui`, `egui_plot`), native file dialogs (`rfd`) and the Windows icon resource (`winresource`) are external.
 - **Fast, light-weight and minimalist**: one small executable, no database, no background services, a clean interface without decoration.
 - **Layered and testable**: the calculations know nothing about the interface; every layer is tested in `tests/`. See [ARCHITECTURE.md](ARCHITECTURE.md).

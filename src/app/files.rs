@@ -2,7 +2,7 @@
 
 use crate::app::state::{App, Cell, FinishGuard, LoadInfo, Msg, Sample, has_extension};
 use crate::domain::MzData;
-use crate::domain::types::Kind;
+use crate::domain::types::{ImportInfo, ImportRoute, Kind};
 use crate::formats::mzml;
 use crate::formats::project::{self, RawSource};
 use crate::formats::rawconv;
@@ -57,6 +57,7 @@ impl App {
                                     path: p,
                                     raw_sha: h,
                                     detail: c.detail,
+                                    route: ImportRoute::Conversion,
                                     source: RawSource::Disk(raw.clone()),
                                 },
                             ));
@@ -106,6 +107,7 @@ impl App {
                                         path: rec_path,
                                         raw_sha: h,
                                         detail: "format=mzML embedded_in_project".into(),
+                                        route: ImportRoute::Direct,
                                         source: RawSource::Embedded {
                                             project,
                                             offset,
@@ -172,6 +174,7 @@ impl App {
                                 path: rec_path,
                                 raw_sha: h,
                                 detail,
+                                route: ImportRoute::Conversion,
                                 source: RawSource::Embedded {
                                     project,
                                     offset,
@@ -256,6 +259,10 @@ impl App {
             src_path: info.path.clone(),
             raw_sha: info.raw_sha.clone(),
             source: info.source.clone(),
+            import: ImportInfo {
+                route: info.route,
+                detail: info.detail.clone(),
+            },
             kind: Kind::Unknown,
             xics: vec![],
             cells: vec![],
@@ -279,7 +286,8 @@ impl App {
                         cell.end = c.end;
                         cell.logged = (c.start, c.end);
                         cell.include = c.include;
-                        cell.conc = c.conc.unwrap_or(rec.conc);
+                        cell.conc = c.conc;
+                        cell.reason = c.reason.clone();
                     }
                 }
                 if !rec.raw_sha256.is_empty() && rec.raw_sha256 != info.raw_sha {
@@ -352,6 +360,7 @@ impl App {
                                     path: ps,
                                     raw_sha: h,
                                     detail: "format=mzML (no converter)".into(),
+                                    route: ImportRoute::Direct,
                                     source: RawSource::Disk(p.clone()),
                                 },
                             ));
